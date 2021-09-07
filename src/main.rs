@@ -9,34 +9,49 @@ const ASPECT: f32 = 16.0/9.0;  // width/height
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
+#[derive(Debug)]
+struct Vector {
+    v: [f32; 3],
+}
+
+impl Vector {
+    fn negate(&mut self) -> &Vector {
+        self.v[0] = -self.v[0];
+        self.v[1] = -self.v[1];
+        self.v[2] = -self.v[2];
+        self
+    }
+}
 
 // todo class vec (here are some helper functions; is operator overloading possible? function overloading isn't... :(
-fn dotself(&(mut vec): &[f32; 3]) -> [f32; 3] {
-    vec[0] *= vec[0];
-    vec[1] *= vec[1];
-    vec[2] *= vec[2];
-    return vec;
-}
+
+// todo: read ch 4 on ownership after unsuccessfully trying all sorts of variations here
+// fn dotself(&(mut vec): &[f32; 3]) -> &[f32; 3] {
+//     vec[0] *= vec[0];
+//     vec[1] *= vec[1];
+//     vec[2] *= vec[2];
+//     return &vec; // doesn't work (neither does just &vec or vec
+// }
 fn dotvec(v1: [f32; 3], v2: [f32; 3]) -> [f32; 3] {
-    return [v1[0] * v2[0],
-            v1[1] * v2[1],
-            v1[2] * v2[2]];
+    [v1[0] * v2[0],
+     v1[1] * v2[1],
+     v1[2] * v2[2]]
 }
 fn addvec(v1: [f32; 3], v2: [f32; 3]) -> [f32; 3] {
-    return [v1[0] + v2[0],
-            v1[1] + v2[1],
-            v1[2] + v2[2]];
+    [v1[0] + v2[0],
+     v1[1] + v2[1],
+     v1[2] + v2[2]]
 }
 fn mulvec(v1: [f32; 3], k: f32) -> [f32; 3] {
-    return [v1[0] * k,
-            v1[1] * k,
-            v1[2] * k];
+    [v1[0] * k,
+     v1[1] * k,
+     v1[2] * k]
 }
 fn normalize(v: [f32; 3]) -> [f32; 3] {
     let magnitude = (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt();
-    return [v[0] / magnitude,
-            v[1] / magnitude,
-            v[2] / magnitude];
+    [v[0] / magnitude,
+     v[1] / magnitude,
+     v[2] / magnitude]
 }
 
 // todo class ray: (origin: [f32; 3], dir: [f32; 3]);
@@ -51,14 +66,22 @@ fn ray_color(ray: ([f32; 3], [f32; 3])) -> [f32; 3] {
 }
 
 fn main() {
-    println!("create a png"); // note the ! after println cuz it's a macro
+    let str = "create a png";
+    // TODO: how do I print the type of str?
+    println!("{}", str); // note the ! after println cuz it's a macro
     init("bowwwah!");
 
-    let v1 = [1.0, 2., 3.];  // does this need to be let mut v1 since it's modified by dotself?
+    let mut v1 = [1.0, 2., 3.];  // does this need to be let mut v1 since it's modified by dotself?
     let v2 = [4., -1., 3.];
 
     println!("v1 dot v2 = `{:?}", dotvec(v1, v2));
-    println!("v1 dot v1 = `{:#?}", dotself(&v1));
+    // println!("v1 dot v1 = `{:#?}", dotself(&mut v1));
+    // println!("v1 after dotself: {:?}", v1);
+
+    let mut vec = Vector { v: [0.0, 1.0, -1.25] };
+    println!("vec: {:?}", vec);
+    vec.negate();
+    println!("vec after negation: {:?}", vec);
 
     // viewport
     const VIEWPORT_HEIGHT: f32 = 2.0;
@@ -72,7 +95,12 @@ fn main() {
     let topleft = addvec(origin, addvec([0., 0., origin[2] - FOCAL_LENGTH],
                                         addvec(mulvec(right, -0.5), mulvec(up, 0.5))));
 
-    let mut data: Vec<u8> = vec![255; usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap()];
+    // For this case, setting size without initializing is not buying much, but for reading files... 
+    // I'm just glad to learn how to do it.
+    //let mut data: Vec<u8> = vec![255; usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap()];
+    let mut data: Vec<u8> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
+    println!("data.len: {}", data.len());
+    unsafe { data.set_len(data.capacity()); }
     println!("data.len: {}", data.len());
 
     let mut color_bounds: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
@@ -94,9 +122,9 @@ fn main() {
                                                  mulvec(origin, -1.0)));
 
             let c = ray_color(ray);
-            if j % IMAGE_WIDTH == 0 {
-                println!("color: {:?}", c);
-            }
+            // if j % IMAGE_WIDTH == 0 {
+            //     println!("color: {:?}", c);
+            // }
             for rgb in 0..3 {
                 color_bounds.0[rgb] = color_bounds.0[rgb].min(c[rgb]);
                 color_bounds.1[rgb] = color_bounds.1[rgb].max(c[rgb]);
@@ -105,6 +133,7 @@ fn main() {
             data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 0).unwrap()] = (255.999 * c[0]) as u8;
             data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 1).unwrap()] = (255.999 * c[1]) as u8;
             data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 2).unwrap()] = (255.999 * c[2]) as u8;
+            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 3).unwrap()] = 255;
         }
     }
 
@@ -114,13 +143,14 @@ fn main() {
     conclude("Goodbye fellow Rustaceans!");
 }
 
-fn init(arg: &str) {
+fn init(arg: &str) -> u32{
     println!("welcome to fn!");
     println!("arg: {}", arg);
 
     for i in 0..3 {
         println!("{}", i);
     }
+    return 42;
 }
 
 fn conclude(msg: &str) {
