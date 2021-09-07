@@ -9,21 +9,67 @@ const ASPECT: f32 = 16.0/9.0;  // width/height
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
-#[derive(Debug)]
+// ?'s:
+// - is operator overloading possible? function overloading isn't... :(
+// - what is * notation for? (& is borrowing, etc)
+
+
+#[derive(Debug)]  // enables it to be printed. What else?
+#[derive(Copy, Clone)]
 struct Vector {
-    v: [f32; 3],
+    v: [f32; 3],  // make it 4 elements to add w/a
 }
 
+// alternative universe (maybe possible with...?)
+// struct Vector {
+//     x: f32,
+//     y: f32,
+//     z: f32,
+//     w: f32,
+// }
+
 impl Vector {
+    fn init(x: f32, y: f32, z: f32) -> Vector {
+        Vector { v: [x, y, z] }
+    }
+
     fn negate(&mut self) -> &Vector {
         self.v[0] = -self.v[0];
         self.v[1] = -self.v[1];
         self.v[2] = -self.v[2];
         self
     }
-}
+    fn dot(&self, other: &Vector) -> Vector {
+        Vector { v: [self.v[0] * other.v[0],
+                     self.v[1] * other.v[1],
+                     self.v[2] * other.v[2]] }
+    }
+    fn add(&self, other: &Vector) -> Vector {
+        Vector { v: [self.v[0] + other.v[0],
+                     self.v[1] + other.v[1],
+                     self.v[2] + other.v[2]] }
+    }
+    // todo: +=, etc
+    fn mul(&self, k: f32) -> Vector {
+        Vector { v: [self.v[0] * k,
+                     self.v[1] * k,
+                     self.v[2] * k] }
+    }
+    fn normalize(&mut self) -> &Vector {
+        let magnitude = (self.v[0]*self.v[0] +
+                         self.v[1]*self.v[1] +
+                         self.v[2]*self.v[2]).sqrt();
+        self.v[0] /= magnitude;
+        self.v[1] /= magnitude;
+        self.v[2] /= magnitude;
+        self
+    }
 
-// todo class vec (here are some helper functions; is operator overloading possible? function overloading isn't... :(
+    fn normalized(mut vec: Vector) -> Vector {
+        vec.normalize();
+        vec
+    }
+}
 
 // todo: read ch 4 on ownership after unsuccessfully trying all sorts of variations here
 // fn dotself(&(mut vec): &[f32; 3]) -> &[f32; 3] {
@@ -32,37 +78,15 @@ impl Vector {
 //     vec[2] *= vec[2];
 //     return &vec; // doesn't work (neither does just &vec or vec
 // }
-fn dotvec(v1: [f32; 3], v2: [f32; 3]) -> [f32; 3] {
-    [v1[0] * v2[0],
-     v1[1] * v2[1],
-     v1[2] * v2[2]]
-}
-fn addvec(v1: [f32; 3], v2: [f32; 3]) -> [f32; 3] {
-    [v1[0] + v2[0],
-     v1[1] + v2[1],
-     v1[2] + v2[2]]
-}
-fn mulvec(v1: [f32; 3], k: f32) -> [f32; 3] {
-    [v1[0] * k,
-     v1[1] * k,
-     v1[2] * k]
-}
-fn normalize(v: [f32; 3]) -> [f32; 3] {
-    let magnitude = (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]).sqrt();
-    [v[0] / magnitude,
-     v[1] / magnitude,
-     v[2] / magnitude]
-}
-
 // todo class ray: (origin: [f32; 3], dir: [f32; 3]);
 
-fn ray_color(ray: ([f32; 3], [f32; 3])) -> [f32; 3] {
-    let (_origin, dir) = ray;
-    let dir = normalize(dir);
-    let c: [f32; 3] = [0.5 * (dir[1] + 1.0),
-                       0.25,
-                       0.5 * (dir[0] + 1.0)];    //c.a = 1.0;
-    return c;
+fn ray_color(ray: (Vector, Vector)) -> Vector {
+    // let (_origin, dir) = ray;
+    // let dir = dir.normalize(dir);// hmm... can I get a _copy_ of ray.dir?
+    let dir = Vector::normalized(ray.1);
+    Vector { v: [0.5 * (dir.v[1] + 1.0),
+                 0.25,
+                 0.5 * (dir.v[0] + 1.0)] }
 }
 
 fn main() {
@@ -71,10 +95,10 @@ fn main() {
     println!("{}", str); // note the ! after println cuz it's a macro
     init("bowwwah!");
 
-    let mut v1 = [1.0, 2., 3.];  // does this need to be let mut v1 since it's modified by dotself?
-    let v2 = [4., -1., 3.];
+    let v1 = Vector { v: [1.0, 2., 3.] };
+    let v2 = Vector { v: [4., -1., 3.] };
 
-    println!("v1 dot v2 = `{:?}", dotvec(v1, v2));
+    println!("v1 dot v2 = `{:?}", v1.dot(&v2));
     // println!("v1 dot v1 = `{:#?}", dotself(&mut v1));
     // println!("v1 after dotself: {:?}", v1);
 
@@ -88,12 +112,12 @@ fn main() {
     const VIEWPORT_WIDTH: f32 = VIEWPORT_HEIGHT * ASPECT;
     const FOCAL_LENGTH: f32 = 1.0;
 
-    let origin = [0.0, 0.0, 0.0];
-    let right = [1.0, 0.0, 0.0];
-    let up = [0.0, 1.0, 0.0];
+    let origin = Vector::init(0.0, 0.0, 0.0);
+    let right = Vector::init(1.0, 0.0, 0.0);
+    let up = Vector::init(0.0, 1.0, 0.0);
     //let topleft = [origin - right/2.0, origin + up/2.0, origin[2] - FOCAL_LENGTH];
-    let topleft = addvec(origin, addvec([0., 0., origin[2] - FOCAL_LENGTH],
-                                        addvec(mulvec(right, -0.5), mulvec(up, 0.5))));
+    let topleft = origin.add(&Vector::init(0., 0., origin.v[2] - FOCAL_LENGTH)
+                             .add(&right.mul(-0.5)).add(&up.mul(0.5)));
 
     // For this case, setting size without initializing is not buying much, but for reading files... 
     // I'm just glad to learn how to do it.
@@ -111,28 +135,23 @@ fn main() {
             //                topleft +
             //                i / IMAGE_WIDTH * VIEWPORT_WIDTH +
             //                j / IMAGE_HEIGHT * VIEWPORT_HEIGHT - origin);
-            let ray: ([f32; 3], [f32; 3]) = (origin,
-                                             addvec(
-                                                 addvec(topleft,
-                                                        addvec(
-                                                            addvec([0.0, 0.0, 0.0],
-                                                                   mulvec(right, i as f32 / IMAGE_WIDTH as f32 * VIEWPORT_WIDTH )),
-                                                            addvec([0.0, 0.0, 0.0],
-                                                                   mulvec(up, -1. * i as f32 / IMAGE_HEIGHT as f32 * VIEWPORT_HEIGHT)))),
-                                                 mulvec(origin, -1.0)));
+            let ray: (Vector, Vector) = (origin,
+                                         topleft.add(&right.mul(i as f32 / IMAGE_WIDTH as f32 * VIEWPORT_WIDTH ))
+                                                .add(&up.mul(-1. * i as f32 / IMAGE_HEIGHT as f32 * VIEWPORT_HEIGHT))
+                                                .add(&origin.mul(-1.0)));
 
             let c = ray_color(ray);
             // if j % IMAGE_WIDTH == 0 {
             //     println!("color: {:?}", c);
             // }
             for rgb in 0..3 {
-                color_bounds.0[rgb] = color_bounds.0[rgb].min(c[rgb]);
-                color_bounds.1[rgb] = color_bounds.1[rgb].max(c[rgb]);
+                color_bounds.0[rgb] = color_bounds.0[rgb].min(c.v[rgb]);
+                color_bounds.1[rgb] = color_bounds.1[rgb].max(c.v[rgb]);
             }
 
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 0).unwrap()] = (255.999 * c[0]) as u8;
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 1).unwrap()] = (255.999 * c[1]) as u8;
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 2).unwrap()] = (255.999 * c[2]) as u8;
+            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 0).unwrap()] = (255.999 * c.v[0]) as u8;
+            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 1).unwrap()] = (255.999 * c.v[1]) as u8;
+            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 2).unwrap()] = (255.999 * c.v[2]) as u8;
             data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 3).unwrap()] = 255;
         }
     }
