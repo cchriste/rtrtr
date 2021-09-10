@@ -11,8 +11,19 @@ const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // ?'s:
 // - is operator overloading possible? function overloading isn't... :(
+//   maybe traits? here we declare the Foo trait with a bar method
+// trait Foo {
+//     fn bar(&self);
+// }
+// we now declare a function which takes an object implementing the Foo trait
+// fn some_func<T: Foo>(foo: T) {
+//     foo.bar();
+// }
 // - what is * notation for? (& is borrowing, etc)
-
+// - what is try_from, as in usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap()
+// - global variables? (`let foo = 42;` doesn't work)
+//   let mut rng = rand::thread_rng(); // doesn't work
+// - multiple files, please!
 
 #[derive(Debug)]  // enables it to be printed. What else?
 #[derive(Copy, Clone)]
@@ -20,6 +31,8 @@ struct Vector {
     v: [f32; 3],  // make it 4 elements to add w/a
 }
 
+// Thursday, September 9, 2021 - this is growing on me... maybe functions?
+// ...that returns refs? so v.x() = 42.0;
 // alternative universe (maybe possible with...?)
 // struct Vector {
 //     x: f32,
@@ -85,15 +98,25 @@ fn ray_color(ray: (Vector, Vector)) -> Vector {
     // let dir = dir.normalize(dir);// hmm... can I get a _copy_ of ray.dir?
     let dir = Vector::normalized(ray.1);
     Vector { v: [0.5 * (dir.v[1] + 1.0),
-                 0.25,
+                 rand::random(),
                  0.5 * (dir.v[0] + 1.0)] }
 }
 
+// try to reduce annoyingly verbose array indices from u32s
+//fn idx(i: u32) -> usize { return usize::try_from(idx).unwrap(); }
+// Damn: E0277 missing trait again
+
 fn main() {
+
+    // are there operators? can I make my own?
+    let mut foo = 42;
     let str = "create a png";
     // TODO: how do I print the type of str?
-    println!("{}", str); // note the ! after println cuz it's a macro
-    init("bowwwah!");
+    println!("{} {}", str, foo); // note the ! after println cuz it's a macro
+    foo += 42;
+    //init("bowwwah!" + str(foo)); // TODO: figure out how to combine string and stuff
+    init("bowwwah!"); // TODO: figure out how to combine string and stuff
+    println!("start with the answer: {}", foo);
 
     let v1 = Vector { v: [1.0, 2., 3.] };
     let v2 = Vector { v: [4., -1., 3.] };
@@ -119,13 +142,9 @@ fn main() {
     let topleft = origin.add(&Vector::init(0., 0., origin.v[2] - FOCAL_LENGTH)
                              .add(&right.mul(-0.5)).add(&up.mul(0.5)));
 
-    // For this case, setting size without initializing is not buying much, but for reading files... 
-    // I'm just glad to learn how to do it.
-    //let mut data: Vec<u8> = vec![255; usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap()];
-    let mut data: Vec<u8> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
-    println!("data.len: {}", data.len());
-    unsafe { data.set_len(data.capacity()); }
-    println!("data.len: {}", data.len());
+    // image
+    let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
+    unsafe { img.set_len(img.capacity()); }
 
     let mut color_bounds: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
@@ -135,30 +154,53 @@ fn main() {
             //                topleft +
             //                i / IMAGE_WIDTH * VIEWPORT_WIDTH +
             //                j / IMAGE_HEIGHT * VIEWPORT_HEIGHT - origin);
-            let ray: (Vector, Vector) = (origin,
-                                         topleft.add(&right.mul(i as f32 / IMAGE_WIDTH as f32 * VIEWPORT_WIDTH ))
-                                                .add(&up.mul(-1. * i as f32 / IMAGE_HEIGHT as f32 * VIEWPORT_HEIGHT))
-                                                .add(&origin.mul(-1.0)));
+            let ray: (Vector, Vector) =
+                (origin,
+                 topleft.add(&right.mul(i as f32 / IMAGE_WIDTH as f32 * VIEWPORT_WIDTH ))
+                 .add(&up.mul(-1. * i as f32 / IMAGE_HEIGHT as f32 * VIEWPORT_HEIGHT))
+                 .add(&origin.mul(-1.0)));
 
             let c = ray_color(ray);
             // if j % IMAGE_WIDTH == 0 {
             //     println!("color: {:?}", c);
             // }
-            for rgb in 0..3 {
-                color_bounds.0[rgb] = color_bounds.0[rgb].min(c.v[rgb]);
-                color_bounds.1[rgb] = color_bounds.1[rgb].max(c.v[rgb]);
+
+            // update color minmax
+            for i in 0..3 {
+                color_bounds.0[i] = color_bounds.0[i].min(c.v[i]);
+                color_bounds.1[i] = color_bounds.1[i].max(c.v[i]);
             }
 
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 0).unwrap()] = (255.999 * c.v[0]) as u8;
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 1).unwrap()] = (255.999 * c.v[1]) as u8;
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 2).unwrap()] = (255.999 * c.v[2]) as u8;
-            data[usize::try_from(4*(i * IMAGE_WIDTH + j) + 3).unwrap()] = 255;
+            img[usize::try_from(4*(i * IMAGE_WIDTH + j) + 0).unwrap()] = c.v[0];
+            img[usize::try_from(4*(i * IMAGE_WIDTH + j) + 1).unwrap()] = c.v[1];
+            img[usize::try_from(4*(i * IMAGE_WIDTH + j) + 2).unwrap()] = c.v[2];
+            img[usize::try_from(4*(i * IMAGE_WIDTH + j) + 3).unwrap()] = 1.0;
         }
     }
 
+    // compute color range
+    // TODO: x-x = NaN; fixme
+    let c_rng = Vector::init(1.0/(color_bounds.1[0] - color_bounds.0[0]),
+                             1.0/(color_bounds.1[1] - color_bounds.0[1]),
+                             1.0/(color_bounds.1[2] - color_bounds.0[2]));
     println!("color_bounds: {:#?}", color_bounds);
+    println!("color_range_scalar: {:#?}", c_rng);
 
-    write_img(r"/tmp/first_canvas.png", data);
+    // scale color to [0..1]
+    for i in 0..IMAGE_HEIGHT*IMAGE_WIDTH {
+        let r = img[usize::try_from(4*i + 0).unwrap()];
+        let g = img[usize::try_from(4*i + 1).unwrap()];
+        let b = img[usize::try_from(4*i + 2).unwrap()];
+        let a = img[usize::try_from(4*i + 3).unwrap()];
+
+        img[usize::try_from(4*i + 0).unwrap()] = (r - color_bounds.0[0]) * c_rng.v[0];
+        img[usize::try_from(4*i + 1).unwrap()] = (g - color_bounds.0[1]) * c_rng.v[1];
+        img[usize::try_from(4*i + 2).unwrap()] = (b - color_bounds.0[2]) * c_rng.v[2];
+        img[usize::try_from(4*i + 3).unwrap()] = a;
+    }
+
+
+    write_img(r"/tmp/scaled_canvas.png", img);
     conclude("Goodbye fellow Rustaceans!");
 }
 
@@ -181,7 +223,7 @@ fn conclude(msg: &str) {
     say(message.as_bytes(), width, &mut writer).unwrap();
 }
 
-fn write_img(filename: &str, data: Vec<u8>) {
+fn write_img(filename: &str, img: Vec<f32>) {
     // For reading and opening files
     use std::path::Path;
     use std::fs::File;
@@ -203,6 +245,13 @@ fn write_img(filename: &str, data: Vec<u8>) {
         (0.15000, 0.06000)
     );
     encoder.set_source_chromaticities(source_chromaticities);
+
+    // convert floats to chars
+    let mut data: Vec<u8> = Vec::with_capacity(img.len());
+    unsafe { data.set_len(data.capacity()); }
+    for i in 0..img.len() {
+        data[i] = (255.999 * img[i]) as u8;
+    }
 
     let mut writer = encoder.write_header().unwrap();
     writer.write_image_data(&data).unwrap(); // Save
