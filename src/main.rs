@@ -68,6 +68,17 @@ impl Vector {
                      self.v[1] * k,
                      self.v[2] * k] }
     }
+    fn cross(&self, other: &Vector) -> Vector {
+        //        |  î   ĵ   k̂ |
+        // det of | a0  a1  a2 |
+        //        | b0  b1  b2 |
+        //
+        // = (a1b2 - a2b1)î - (a2b0 - a0b2)ĵ + (a0b1 - a1b0)k̂
+        //
+        Vector { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
+                     self.v[2]*other.v[0] - self.v[0]*other.v[2],
+                     self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
+    }
     fn normalize(&mut self) -> &Vector {
         let magnitude = (self.v[0]*self.v[0] +
                          self.v[1]*self.v[1] +
@@ -93,7 +104,7 @@ impl Vector {
 // }
 // todo class ray: (origin: [f32; 3], dir: [f32; 3]);
 
-fn ray_color(ray: (Vector, Vector)) -> Vector {
+fn ray_color(ray: &(Vector, Vector)) -> Vector {
     // let (_origin, dir) = ray;
     // let dir = dir.normalize(dir);// hmm... can I get a _copy_ of ray.dir?
     let dir = Vector::normalized(ray.1);
@@ -138,9 +149,16 @@ fn main() {
     let origin = Vector::init(0.0, 0.0, 0.0);
     let right = Vector::init(1.0, 0.0, 0.0);
     let up = Vector::init(0.0, 1.0, 0.0);
+    // let right = Vector::init(-1.0, 0.0, 0.0); // rot -180
+    // let up = Vector::init(0.0, -1.0, 0.0);
+    let z = right.cross(&up);
+
     //let topleft = [origin - right/2.0, origin + up/2.0, origin[2] - FOCAL_LENGTH];
-    let topleft = origin.add(&Vector::init(0., 0., origin.v[2] - FOCAL_LENGTH)
-                             .add(&right.mul(-0.5)).add(&up.mul(0.5)));
+    let mut topleft = origin;
+    topleft = topleft.add(&z.mul(-FOCAL_LENGTH));
+    topleft = topleft.add(&right.mul(-0.5));
+    topleft = topleft.add(&up.mul(0.5));
+    println!("topleft: {:?}", topleft);
 
     // image
     let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
@@ -156,11 +174,10 @@ fn main() {
             //                j / IMAGE_HEIGHT * VIEWPORT_HEIGHT - origin);
             let ray: (Vector, Vector) =
                 (origin,
-                 topleft.add(&right.mul(i as f32 / IMAGE_WIDTH as f32 * VIEWPORT_WIDTH ))
-                 .add(&up.mul(-1. * i as f32 / IMAGE_HEIGHT as f32 * VIEWPORT_HEIGHT))
-                 .add(&origin.mul(-1.0)));
+                 topleft.add(&right.mul(i as f32 / IMAGE_WIDTH as f32 * VIEWPORT_WIDTH))
+                 .add(&up.mul(-1.0 * i as f32 / IMAGE_HEIGHT as f32 * VIEWPORT_HEIGHT)));
 
-            let c = ray_color(ray);
+            let c = ray_color(&ray);
             // if j % IMAGE_WIDTH == 0 {
             //     println!("color: {:?}", c);
             // }
