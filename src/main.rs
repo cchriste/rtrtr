@@ -1,108 +1,40 @@
+// Rusty the Ray Tracer
+// September 2021
+// ?'s: see #learning Rust note in Standard Notes)
+
+// TODO periodically disable these; it's just hard to develop with them
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(non_snake_case)]
+
 use ferris_says::say;
 use png;
 use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
-use std::f32; // for .sqrt() method
+
+mod utils;
+use crate::utils::{Ray, Vector};
+
+mod objects;
+use crate::objects::{Sphere};
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
-// ?'s:       (also see #learning Rust note in Standard Notes)
-// - is operator overloading possible? function overloading isn't... :(
-//   maybe traits? here we declare the Foo trait with a bar method
-// trait Foo {
-//     fn bar(&self);
-// }
-// we now declare a function which takes an object implementing the Foo trait
-// fn some_func<T: Foo>(foo: T) {
-//     foo.bar();
-// }
-// - global variables? (`let foo = 42;` doesn't work)
-//   let mut rng = rand::thread_rng(); // doesn't work, but I want a global rng
-// - multiple files, please!
-
-#[derive(Debug)]  // enables it to be printed. What else?
-#[derive(Copy, Clone)]
-struct Vector {
-    v: [f32; 3],  // make it 4 elements to add w/a
-}
-
-// Thursday, September 9, 2021 - this is growing on me... maybe functions?
-// ...that returns refs? so v.x() = 42.0;
-// alternative universe (maybe possible with...? maybe *self.v[0] = ?)
-// struct Vector {
-//     x: f32,
-//     y: f32,
-//     z: f32,
-//     w: f32,
-// }
-
-impl Vector {
-    fn init(x: f32, y: f32, z: f32) -> Vector {
-        Vector { v: [x, y, z] }
-    }
-    fn x(&self) -> &f32 { &self.v[0] }
-    fn y(&self) -> f32 { self.v[1] }
-    fn z(&self) -> f32 { self.v[2] }
-    fn len(&self) -> f32 {
-        (self.v[0]*self.v[0] +
-         self.v[1]*self.v[1] +
-         self.v[2]*self.v[2]).sqrt()
-    }
-    fn dot(&self, other: &Vector) -> Vector {
-        Vector { v: [self.v[0] * other.v[0],
-                     self.v[1] * other.v[1],
-                     self.v[2] * other.v[2]] }
-    }
-    fn add(&self, other: &Vector) -> Vector {
-        Vector { v: [self.v[0] + other.v[0],
-                     self.v[1] + other.v[1],
-                     self.v[2] + other.v[2]] }
-    }
-    fn sub(&self, other: &Vector) -> Vector {
-        Vector { v: [self.v[0] - other.v[0],
-                     self.v[1] - other.v[1],
-                     self.v[2] - other.v[2]] }
-    }
-    fn mul(&self, k: f32) -> Vector {
-        Vector { v: [self.v[0] * k,
-                     self.v[1] * k,
-                     self.v[2] * k] }
-    }
-    fn div(&self, k: f32) -> Vector {
-        Vector { v: [self.v[0] / k,
-                     self.v[1] / k,
-                     self.v[2] / k] }
-    }
-    fn cross(&self, other: &Vector) -> Vector {
-        //        |  î   ĵ   k̂ |
-        // det of | a0  a1  a2 |
-        //        | b0  b1  b2 |
-        //
-        // = (a1b2 - a2b1)î - (a2b0 - a0b2)ĵ + (a0b1 - a1b0)k̂
-        //
-        Vector { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
-                     self.v[2]*other.v[0] - self.v[0]*other.v[2],
-                     self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
-    }
-    fn normalize(&self) -> Vector {
-        let magnitude = self.len();
-        Vector { v: [self.v[0] / magnitude,
-                     self.v[1] / magnitude,
-                     self.v[2] / magnitude] }
-    }
-}
-
-// TODO class ray: (origin: [f32; 3], dir: [f32; 3]);
 
 // color of ray(origin, dir)
-fn ray_color(ray: &(Vector, Vector)) -> Vector {
-    let unit_dir = ray.1.normalize();
-    // if (1.0 - unit_dir.len()).abs() > f32::EPSILON {
-    //     println!("unit dir len isn't correct! {:?}, {:?}", unit_dir, ray.1);
-    // }
+fn ray_color(ray: &Ray) -> Vector {
+    let unit_dir = ray.dir.normalize();
+
+    let s = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    let t = s.intersect(ray);
+    if t > 0.0 {
+        let N = ray.at(t).sub(&s.center);
+        return Vector::init(N.x()+1.0, N.y()+1.0, N.z()+1.0).mul(0.5);
+    }
+
     let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
     let white = Vector::init(1.0, 1.0, 1.0);
     let bluey = Vector::init(0.5, 0.7, 1.0);
@@ -112,6 +44,7 @@ fn ray_color(ray: &(Vector, Vector)) -> Vector {
 // try to reduce annoyingly verbose array indices from u32s
 //fn idx(i: u32) -> usize { return usize::try_from(idx).unwrap(); }
 // Damn: E0277 missing trait again
+
 
 fn main() {
 
@@ -143,13 +76,15 @@ fn main() {
 
     for j in (0..IMAGE_HEIGHT).rev() {
         for i in 0..IMAGE_WIDTH {
+    // for j in (IMAGE_HEIGHT/2..IMAGE_HEIGHT/2+2).rev() {
+    //     for i in IMAGE_WIDTH/2..IMAGE_WIDTH/2+2 {
             let pct_x = i as f32 / (IMAGE_WIDTH-1) as f32;
             let pct_y = j as f32 / (IMAGE_HEIGHT-1) as f32;
 
             // ray: origin = O, direction = point moving across image from botleft - origin
             let p1 = botleft.add(&right.mul(pct_x)).add(&up.mul(pct_y));
             let p0 = origin;
-            let ray = (origin, p1.sub(&p0));
+            let ray = Ray::new(origin, p1.sub(&p0));
 
             let color = ray_color(&ray);
             // if j % IMAGE_WIDTH == 0 {
