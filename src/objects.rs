@@ -21,26 +21,20 @@ impl Sphere {
     }
 
     pub fn intersect(&self, ray: &Ray) -> f32 {
-    //     vec3 oc = r.origin() - center;
-        let oc = ray.origin.sub(&self.center);
+        let oc = ray.origin - self.center;
         //println!("{:?}",oc);
-    //     auto a = dot(r.direction(), r.direction());
-        let a = ray.dir.dot(&ray.dir);
+        let a = ray.dir.len_squared();
         //println!("{:?}",a);
-    //     auto b = 2.0 * dot(oc, r.direction());
-        let b = 2.0 * oc.dot(&ray.dir);
+        let half_b = oc.dot(&ray.dir);
         //println!("{:?}",b);
-    //     auto c = dot(oc, oc) - radius*radius;
-        let c = oc.dot(&oc) - self.radius*self.radius;
+        let c = oc.len_squared() - self.radius*self.radius;
         //println!("{:?}",c);
-    //     auto discriminant = b*b - 4*a*c;
-        let discriminant = b*b - 4.0*a*c;
+        let discriminant = half_b*half_b - a*c;
         //println!("{:?}",discriminant);
-    //     return (discriminant > 0);
         if discriminant < 0.0 {
             return -1.0;
         } else {
-            return (-b - discriminant.sqrt()) / (2.0*a);
+            return (-half_b - discriminant.sqrt() ) / a;
         }
     }
 }

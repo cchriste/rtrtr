@@ -18,41 +18,80 @@ pub struct Vector {
 //     w: f32,
 // }
 
-impl Vector {
-    pub fn init(x: f32, y: f32, z: f32) -> Vector {
-        Vector { v: [x, y, z] }
-    }
-    pub fn x(&self) -> &f32 { &self.v[0] }
-    pub fn y(&self) -> f32 { self.v[1] }
-    pub fn z(&self) -> f32 { self.v[2] }
-    pub fn len(&self) -> f32 {
-        (self.v[0]*self.v[0] +
-         self.v[1]*self.v[1] +
-         self.v[2]*self.v[2]).sqrt()
-    }
-    pub fn dot(&self, other: &Vector) -> f32 {
-        self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2]
-    }
-    pub fn add(&self, other: &Vector) -> Vector {
+use std::ops::{Mul, Div, Sub, Add};
+
+impl Add for Vector {
+    type Output = Vector;
+
+    fn add(self, other: Vector) -> Vector {
         Vector { v: [self.v[0] + other.v[0],
                      self.v[1] + other.v[1],
                      self.v[2] + other.v[2]] }
     }
-    pub fn sub(&self, other: &Vector) -> Vector {
+}
+
+impl Sub for Vector {
+    type Output = Vector;
+
+    fn sub(self, other: Vector) -> Vector {
         Vector { v: [self.v[0] - other.v[0],
                      self.v[1] - other.v[1],
                      self.v[2] - other.v[2]] }
     }
-    pub fn mul(&self, k: f32) -> Vector {
-        Vector { v: [self.v[0] * k,
-                     self.v[1] * k,
-                     self.v[2] * k] }
+}
+
+// yay! we can do k*Vector
+impl Mul<f32> for Vector {
+    type Output = Self;
+
+    fn mul(self, k: f32) -> Self {
+        Self { v: [self.v[0] * k,
+                   self.v[1] * k,
+                   self.v[2] * k] }
     }
-    pub fn div(&self, k: f32) -> Vector {
-        Vector { v: [self.v[0] / k,
-                     self.v[1] / k,
-                     self.v[2] / k] }
+}
+
+impl Mul<Vector> for f32 {
+    type Output = Vector;
+
+    fn mul(self, vec: Vector) -> Vector {
+        Vector { v: [vec.v[0] * self,
+                     vec.v[1] * self,
+                     vec.v[2] * self] }
     }
+}
+
+impl Div<f32> for Vector {
+    type Output = Self;
+
+    fn div(self, k: f32) -> Self {
+        Self { v: [self.v[0] / k,
+                   self.v[1] / k,
+                   self.v[2] / k] }
+    }
+}
+
+
+impl Vector {
+    pub fn init(x: f32, y: f32, z: f32) -> Self {
+        Self { v: [x, y, z] }
+    }
+    pub fn x(&self) -> &f32 { &self.v[0] }
+    pub fn y(&self) -> f32 { self.v[1] }
+    pub fn z(&self) -> f32 { self.v[2] }
+
+    pub fn len_squared(&self) -> f32 {
+        self.v[0]*self.v[0] + self.v[1]*self.v[1] + self.v[2]*self.v[2]
+    }
+
+    pub fn len(&self) -> f32 {
+        self.len_squared().sqrt()
+    }
+
+    pub fn dot(&self, other: &Vector) -> f32 {
+        self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2]
+    }
+
     pub fn cross(&self, other: &Vector) -> Vector {
         //        |  î   ĵ   k̂ |
         // det of | a0  a1  a2 |
@@ -64,6 +103,7 @@ impl Vector {
                      self.v[2]*other.v[0] - self.v[0]*other.v[2],
                      self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
     }
+
     pub fn normalize(&self) -> Vector {
         let magnitude = self.len();
         Vector { v: [self.v[0] / magnitude,
@@ -79,6 +119,7 @@ pub struct Ray {
 }
 
 impl Ray {
+
     pub fn new(origin: Vector, dir: Vector) -> Ray {
         Ray {
             origin,

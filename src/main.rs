@@ -31,19 +31,15 @@ fn ray_color(ray: &Ray) -> Vector {
     let s = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
     let t = s.intersect(ray);
     if t > 0.0 {
-        let N = ray.at(t).sub(&s.center);
-        return Vector::init(N.x()+1.0, N.y()+1.0, N.z()+1.0).mul(0.5);
+        let N = (ray.at(t) - s.center).normalize();
+        return 0.5*Vector::init(N.x()+1.0, N.y()+1.0, N.z()+1.0);
     }
 
     let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
     let white = Vector::init(1.0, 1.0, 1.0);
     let bluey = Vector::init(0.5, 0.7, 1.0);
-    white.mul(1.0 - t).add(&bluey.mul(t))
+    white*(1.0 - t) + bluey*t
 }
-
-// try to reduce annoyingly verbose array indices from u32s
-//fn idx(i: u32) -> usize { return usize::try_from(idx).unwrap(); }
-// Damn: E0277 missing trait again
 
 
 fn main() {
@@ -57,14 +53,13 @@ fn main() {
     let right = Vector::init(VIEWPORT_WIDTH, 0.0, 0.0);
     let up = Vector::init(0.0, VIEWPORT_HEIGHT, 0.0);
     let z = right.cross(&up).normalize();
-    let look = z.mul(-1.0);
+    let look = z * -1.0;
     println!("right: {:?}",right);
     println!("up: {:?}",up);
     println!("z: {:?}",z);
     println!("look: {:?}",look); // not sure I want this, but it'll be the camera's frame soon
 
-    //let botleft = origin - right/2.0 - up/2.0 + look*FOCAL_LENGTH];
-    let botleft = origin.sub(&right.mul(0.5)).sub(&up.mul(0.5)).add(&look.mul(FOCAL_LENGTH));
+    let botleft = origin - right/2.0 - up/2.0 + look*FOCAL_LENGTH;
     println!("botleft: {:?}", botleft);
 
     // allocate image (just set length, don't initialize)
@@ -82,9 +77,9 @@ fn main() {
             let pct_y = j as f32 / (IMAGE_HEIGHT-1) as f32;
 
             // ray: origin = O, direction = point moving across image from botleft - origin
-            let p1 = botleft.add(&right.mul(pct_x)).add(&up.mul(pct_y));
+            let p1 = botleft + right*pct_x + up*pct_y;
             let p0 = origin;
-            let ray = Ray::new(origin, p1.sub(&p0));
+            let ray = Ray::new(origin, p1 - p0);
 
             let color = ray_color(&ray);
             // if j % IMAGE_WIDTH == 0 {
