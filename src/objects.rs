@@ -11,7 +11,7 @@ pub struct Range {
 // a range, such as [tmin, tmax)
 impl Range {
     pub fn default() -> Self {
-        Range::new(0.0, f32::INFINITY)
+        Range::new(f32::INFINITY, f32::INFINITY)
     }
 
     pub fn new(min: f32, max: f32) -> Self {
@@ -39,7 +39,7 @@ pub enum Result {  // TODO: rename me to... ?
 }
 
 pub trait Intersectable {
-    fn intersect(&self, ray: &Ray, mut rng: &Range) -> Result {
+    fn intersect(&self, ray: &Ray, rng: &mut Range) -> Result {
         return Result::Miss;
     }
 }
@@ -59,23 +59,30 @@ impl<T: Intersectable + std::fmt::Debug> Jumble<T> {
         self.arr.push(obj)
     }
 
-    pub fn intersect(&self, ray: &Ray, mut rng: &Range) -> Result {
+    // TODO: move this to impl Intersectable for Jumble {...
+    pub fn intersect(&self, ray: &Ray, rng: &mut Range) -> Result {
+        let mut hit_something = false;
         let mut record = HitRecord::new();
+        //println!("Jumble::intersect");
         for obj in &self.arr {
-            //println!("wtf is obj: {:?}", obj);
-            match obj.intersect(&ray, &rng) {
+            if crate::DEBUG {
+                println!("obj: {:?}", obj);
+                println!("rng: {:?}", rng);
+            }
+            match obj.intersect(&ray, rng) { // TODO: try modifying this in Sphere::intersect to see if it's passing a ref... after I fix the bug if it not working anymore
                 Result::Hit(hit) => {
-                    // println!("hit! {:?} {:?} {:?}",
+                    // println!("hit! t: {:?} p: {:?} n: {:?}",
                     //          hit.t, hit.point, hit.normal);
-                    if hit.t < record.t { record = hit; } // TODO: also make sure it's within rng (yeah, easy, but I'm tired)
+                    if hit.t < rng.max && hit.t < rng.min {
+                        rng.min = hit.t;
+                        record = hit;
+                    }
+                    hit_something = true;
                 },
                 Result::Miss => (),
             }
         }
-        if record.t > rng.min && record.t < rng.max {
-            // FIXME this isn't what min and max are for: they're supposed to be used to throw out sample that aren't in range
-            // if record.t < rng.min { rng.min = record.t };
-            // if record.t > rng.max { rng.max = record.t };
+        if hit_something { // TODO: I think this can be simpler, maybe no need to keep track of hit_something.
             return Result::Hit(record);
         }
         Result::Miss
@@ -89,7 +96,8 @@ pub struct Sphere {
 }
 
 impl Intersectable for Sphere {
-    fn intersect(&self, ray: &Ray, mut rng: &Range) -> Result {
+    // (just ignore rng for the object and let Jumble sort it out)
+    fn intersect(&self, ray: &Ray, _rng: &mut Range) -> Result {
         let oc = ray.origin - self.center;
         //println!("{:?}",oc);
         let a = ray.dir.len_squared();
@@ -113,9 +121,8 @@ impl Intersectable for Sphere {
 impl Sphere {
     pub fn new(center: Vector, radius: f32) -> Sphere {
         Sphere {
-            // some Rust trick to just initialize them...
             center,
-            radius  // do I need a comma here? omitting to check
+            radius
         }
     }
 }

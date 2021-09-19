@@ -7,6 +7,8 @@
 #![allow(unused_variables)]
 //#![allow(non_snake_case)]
 
+const DEBUG: bool = false;
+
 use ferris_says::say;
 use png;
 use std::io::{stdout, BufWriter};
@@ -16,7 +18,7 @@ mod utils;
 use crate::utils::{Ray, Vector};
 
 mod objects;
-use crate::objects::{Sphere, Jumble, Range, Result, Intersectable};
+use crate::objects::{Sphere, Jumble, Range, Result};
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
@@ -29,10 +31,12 @@ pub struct Color([f32; 4]); // TODO: move to utils
 fn ray_color(ray: &Ray, scene: &Jumble<Sphere>) -> Vector { // TODO: return color
     let mut range = Range::default();
     // println!("range: {:?}", range);
-    match scene.intersect(ray, &range) {
+    match scene.intersect(ray, &mut range) {
         Result::Hit(hit) => {
-            // println!("HIT! time: {}, point: {:?}, normal: {:?}",
-            //          hit.t, hit.point, hit.normal);
+            if crate::DEBUG {
+                println!("HIT! time: {}, point: {:?}, normal: {:?}",
+                         hit.t, hit.point, hit.normal);
+            }
             return 0.5*Vector::init(hit.normal.x()+1.0,
                                     hit.normal.y()+1.0,
                                     hit.normal.z()+1.0);
@@ -76,16 +80,22 @@ fn main() {
     let mut color_range: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
     let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.5);
-    let mut scene = Jumble::<Sphere>::new(); // TODO: somehow need to be able to add anything else, including other jumbles--basically anything that can be intersected (hint: has intersect function)
-    scene.add(s1); //TODO: nervous about copies being passed around, maybe Jumble::<&Sphere> or Jumble.arr should be a Vec<&T>
+    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
+    //let s2 = Sphere::new(Vector::init(0.0,-102.0,-1.0), 100.0);
+    let mut scene = Jumble::<Sphere>::new();// TODO: somehow need to be able to add anything else, including other jumbles--basically anything that can be intersected (hint: has intersect function)... cool! added Intersectable trait and bam! it works.
+    // ...almost. They still all have to be Sphere. 
+    scene.add(s1); //TODO: nervous about copies being passed around, maybe Jumble::<&Sphere> or Jumble.arr should be a Vec<&T>... cool, when I try to modify s2.center below it tells me it's already been moved, so sorry charlie! (i.e., great!)
     scene.add(s2);
+    //s2.center.v[1] = 101.0;  // can't compile this since it's already been moved (awesome!)
 
-    for j in (0..IMAGE_HEIGHT).rev() {
-        for i in 0..IMAGE_WIDTH {
     // handy for debugging just a couple of intersections
-    // for j in (IMAGE_HEIGHT/2..IMAGE_HEIGHT/2+2).rev() { 
-    //     for i in IMAGE_WIDTH/2..IMAGE_WIDTH/2+2 {
+    let start_row = if DEBUG { IMAGE_HEIGHT/2 } else { 0 };
+    let end_row = if DEBUG { IMAGE_HEIGHT/2 + 2 } else { IMAGE_HEIGHT };
+    let start_col = if DEBUG { IMAGE_WIDTH/2 } else { 0 };
+    let end_col = if DEBUG { IMAGE_WIDTH/2 + 2 } else { IMAGE_WIDTH };
+
+    for j in (start_row..end_row).rev() { 
+        for i in start_col..end_col {
             let pct_x = i as f32 / (IMAGE_WIDTH-1) as f32;
             let pct_y = j as f32 / (IMAGE_HEIGHT-1) as f32;
 
