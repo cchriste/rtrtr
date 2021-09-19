@@ -1,6 +1,8 @@
 // my first module... called utils, but it's `[pub] mod utils` is actually it's
 // filename, not a declaration. Confusing at first, but I think I got it.
 
+pub struct Color([f32; 4]);
+//instantiate using: `let c = vec![r,g,b,a];`
 
 #[derive(Debug)]  // enables it to be printed. What else?
 #[derive(Copy, Clone)]

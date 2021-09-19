@@ -1,5 +1,7 @@
 // intersectable objects
 
+use std::fmt::Debug;
+pub trait IntersectableDebug: Intersectable + Debug {}
 use crate::utils::{Ray, Vector};  // Vector-y!
 
 #[derive(Debug)]
@@ -45,26 +47,30 @@ pub trait Intersectable {
 }
 
 // buncha stuff that can be intersected, including itself
-//#[derive(Intersectable)] // TODO: start with Sphere
-pub struct Jumble<T> {
-    arr: Vec<T>,
+#[derive(Debug)]
+pub struct Jumble {
+    arr: Vec<Box<dyn IntersectableDebug>>,
 }
 
-impl<T: Intersectable + std::fmt::Debug> Jumble<T> {
-    pub fn new() -> Jumble<T> {
-        Jumble::<T> { arr: Vec::new() }
+impl Jumble {
+    pub fn new() -> Jumble {
+        Jumble { arr: Vec::new() }
     }
 
-    pub fn add(&mut self, obj: T) {
+    //pub fn add(&mut self, obj: Box<dyn Intersectable>) {
+    pub fn add(&mut self, obj: Box<dyn IntersectableDebug>) {
         self.arr.push(obj)
     }
+}
 
-    // TODO: move this to impl Intersectable for Jumble {...
-    pub fn intersect(&self, ray: &Ray, rng: &mut Range) -> Result {
+impl IntersectableDebug for Jumble {}
+
+impl Intersectable for Jumble {
+    fn intersect(&self, ray: &Ray, rng: &mut Range) -> Result {
         let mut hit_something = false;
         let mut record = HitRecord::new();
         //println!("Jumble::intersect");
-        for obj in &self.arr {
+        for obj in self.arr.iter() {
             if crate::DEBUG {
                 println!("obj: {:?}", obj);
                 println!("rng: {:?}", rng);
@@ -94,6 +100,8 @@ pub struct Sphere {
     pub center: Vector,
     pub radius: f32,
 }
+
+impl IntersectableDebug for Sphere {}
 
 impl Intersectable for Sphere {
     // (just ignore rng for the object and let Jumble sort it out)

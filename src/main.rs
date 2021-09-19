@@ -5,6 +5,7 @@
 // TODO periodically disable these; it's just hard to develop with them
 #![allow(dead_code)]
 #![allow(unused_variables)]
+#![allow(unused_imports)]
 //#![allow(non_snake_case)]
 
 const DEBUG: bool = false;
@@ -15,20 +16,18 @@ use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
 
 mod utils;
-use crate::utils::{Ray, Vector};
+use crate::utils::{Ray, Vector, Color};
 
 mod objects;
-use crate::objects::{Sphere, Jumble, Range, Result};
+use crate::objects::{Sphere, Jumble, Range, Result, Intersectable};
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
-pub struct Color([f32; 4]); // TODO: move to utils
-
 // color of ray(origin, dir)
-fn ray_color(ray: &Ray, scene: &Jumble<Sphere>) -> Vector { // TODO: return color
+fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
     let mut range = Range::default();
     // println!("range: {:?}", range);
     match scene.intersect(ray, &mut range) {
@@ -81,12 +80,13 @@ fn main() {
 
     let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
     let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
-    //let s2 = Sphere::new(Vector::init(0.0,-102.0,-1.0), 100.0);
-    let mut scene = Jumble::<Sphere>::new();// TODO: somehow need to be able to add anything else, including other jumbles--basically anything that can be intersected (hint: has intersect function)... cool! added Intersectable trait and bam! it works.
-    // ...almost. They still all have to be Sphere. 
-    scene.add(s1); //TODO: nervous about copies being passed around, maybe Jumble::<&Sphere> or Jumble.arr should be a Vec<&T>... cool, when I try to modify s2.center below it tells me it's already been moved, so sorry charlie! (i.e., great!)
-    scene.add(s2);
-    //s2.center.v[1] = 101.0;  // can't compile this since it's already been moved (awesome!)
+    let mut scene = Jumble::new();
+    scene.add(Box::new(s1));
+    scene.add(Box::new(s2));
+    let mut scene2 = Jumble::new();
+    let s3 = Sphere::new(Vector::init(-0.5,0.0,-1.0), 0.5);
+    scene2.add(Box::new(s3));
+    scene.add(Box::new(scene2));
 
     // handy for debugging just a couple of intersections
     let start_row = if DEBUG { IMAGE_HEIGHT/2 } else { 0 };
