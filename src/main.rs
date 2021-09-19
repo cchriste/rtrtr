@@ -5,7 +5,7 @@
 // TODO periodically disable these; it's just hard to develop with them
 #![allow(dead_code)]
 #![allow(unused_variables)]
-#![allow(non_snake_case)]
+//#![allow(non_snake_case)]
 
 use ferris_says::say;
 use png;
@@ -16,29 +16,35 @@ mod utils;
 use crate::utils::{Ray, Vector};
 
 mod objects;
-use crate::objects::{Sphere};
+use crate::objects::{Sphere, Jumble, Range, Result, Intersectable};
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
 const IMAGE_WIDTH: u32 = 200;
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
+pub struct Color([f32; 4]); // TODO: move to utils
 
 // color of ray(origin, dir)
-fn ray_color(ray: &Ray) -> Vector {
-    let unit_dir = ray.dir.normalize();
-
-    let s = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    let t = s.intersect(ray);
-    if t > 0.0 {
-        let N = (ray.at(t) - s.center).normalize();
-        return 0.5*Vector::init(N.x()+1.0, N.y()+1.0, N.z()+1.0);
+fn ray_color(ray: &Ray, scene: &Jumble<Sphere>) -> Vector { // TODO: return color
+    let mut range = Range::default();
+    // println!("range: {:?}", range);
+    match scene.intersect(ray, &range) {
+        Result::Hit(hit) => {
+            // println!("HIT! time: {}, point: {:?}, normal: {:?}",
+            //          hit.t, hit.point, hit.normal);
+            return 0.5*Vector::init(hit.normal.x()+1.0,
+                                    hit.normal.y()+1.0,
+                                    hit.normal.z()+1.0);
+        },
+        Result::Miss => {
+            let unit_dir = ray.dir.normalize();
+            let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
+            let white = Vector::init(1.0, 1.0, 1.0);
+            let bluey = Vector::init(0.5, 0.7, 1.0);
+            return white*(1.0 - t) + bluey*t;
+        }
     }
-
-    let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
-    let white = Vector::init(1.0, 1.0, 1.0);
-    let bluey = Vector::init(0.5, 0.7, 1.0);
-    white*(1.0 - t) + bluey*t
 }
 
 
@@ -69,9 +75,16 @@ fn main() {
     // keep track of min/max color values
     let mut color_range: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
+    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.5);
+    let mut scene = Jumble::<Sphere>::new(); // TODO: somehow need to be able to add anything else, including other jumbles--basically anything that can be intersected (hint: has intersect function)
+    scene.add(s1); //TODO: nervous about copies being passed around, maybe Jumble::<&Sphere> or Jumble.arr should be a Vec<&T>
+    scene.add(s2);
+
     for j in (0..IMAGE_HEIGHT).rev() {
         for i in 0..IMAGE_WIDTH {
-    // for j in (IMAGE_HEIGHT/2..IMAGE_HEIGHT/2+2).rev() {
+    // handy for debugging just a couple of intersections
+    // for j in (IMAGE_HEIGHT/2..IMAGE_HEIGHT/2+2).rev() { 
     //     for i in IMAGE_WIDTH/2..IMAGE_WIDTH/2+2 {
             let pct_x = i as f32 / (IMAGE_WIDTH-1) as f32;
             let pct_y = j as f32 / (IMAGE_HEIGHT-1) as f32;
@@ -81,7 +94,7 @@ fn main() {
             let p0 = origin;
             let ray = Ray::new(origin, p1 - p0);
 
-            let color = ray_color(&ray);
+            let color = ray_color(&ray, &scene);
             // if j % IMAGE_WIDTH == 0 {
             //     println!("color: {:?}", color);
             // }

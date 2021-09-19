@@ -73,6 +73,10 @@ impl Div<f32> for Vector {
 
 
 impl Vector {
+    pub fn zero() -> Self {
+        Self { v: [0.0, 0.0, 0.0] }
+    }
+
     pub fn init(x: f32, y: f32, z: f32) -> Self {
         Self { v: [x, y, z] }
     }
