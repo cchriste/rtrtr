@@ -14,6 +14,7 @@ use ferris_says::say;
 use png;
 use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
+use std::convert::TryInto;
 
 mod utils;
 use crate::utils::{Ray, Vector, Color};
@@ -78,50 +79,53 @@ fn main() {
     // keep track of min/max color values
     let mut color_range: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
-    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
-    let mut scene = Jumble::new();
-    scene.add(Box::new(s1));
-    scene.add(Box::new(s2));
-    let mut scene2 = Jumble::new();
-    let s3 = Sphere::new(Vector::init(-0.5,0.0,-1.0), 0.5);
-    scene2.add(Box::new(s3));
-    scene.add(Box::new(scene2));
+    // build scene
+    let scene = build_scene();
+
+    // trace pixels
+    let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG { IMAGE_HEIGHT/2 } else { 0 };
-    let end_row = if DEBUG { IMAGE_HEIGHT/2 + 2 } else { IMAGE_HEIGHT };
-    let start_col = if DEBUG { IMAGE_WIDTH/2 } else { 0 };
-    let end_col = if DEBUG { IMAGE_WIDTH/2 + 2 } else { IMAGE_WIDTH };
-
-    for j in (start_row..end_row).rev() { 
-        for i in start_col..end_col {
-            let pct_x = i as f32 / (IMAGE_WIDTH-1) as f32;
-            let pct_y = j as f32 / (IMAGE_HEIGHT-1) as f32;
-
-            // ray: origin = O, direction = point moving across image from botleft - origin
-            let p1 = botleft + right*pct_x + up*pct_y;
-            let p0 = origin;
-            let ray = Ray::new(origin, p1 - p0);
-
-            let color = ray_color(&ray, &scene);
-            // if j % IMAGE_WIDTH == 0 {
-            //     println!("color: {:?}", color);
-            // }
-
-            // update color minmax
-            for c in 0..3 {
-                color_range.0[c] = color_range.0[c].min(color.v[c]);
-                color_range.1[c] = color_range.1[c].max(color.v[c]);
-            }
-
-            // 4 * (current height * image width + current width)
-            let idx = usize::try_from(4*((IMAGE_HEIGHT-1 - j) * IMAGE_WIDTH + i)).unwrap();
-            img[idx + 0] = color.v[0];
-            img[idx + 1] = color.v[1];
-            img[idx + 2] = color.v[2];
-            img[idx + 3] = 1.0;
+    let start_row = 0;
+    let end_row = IMAGE_HEIGHT;
+    let start_col = if DEBUG {IMAGE_WIDTH/2} else {0};
+    let end_col = IMAGE_WIDTH;
+    let step_y: usize = if DEBUG { (IMAGE_HEIGHT / 3).try_into().unwrap() } else { 1 };
+    let step_x: usize = if DEBUG { (IMAGE_WIDTH / 2).try_into().unwrap() } else { 1 };
+    for j in (start_row..end_row).step_by(step_y).rev() { 
+        for i in (start_col..end_col).step_by(step_x) {
+            if DEBUG { println!("i,j: {},{}", i,j); }
+            pixels.push([i, j]);
         }
+    }
+
+    for px in pixels {
+        let pct_x = px[0] as f32 / (IMAGE_WIDTH-1) as f32;
+        let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
+
+        // ray: origin = O, direction = point moving across image from botleft - origin
+        let p1 = botleft + right*pct_x + up*pct_y;
+        let p0 = origin;
+        let ray = Ray::new(origin, p1 - p0);
+        if DEBUG { println!("ray: {:#?}",ray); }
+
+        let color = ray_color(&ray, &scene);
+        if DEBUG { //&& px[0] % IMAGE_WIDTH == 0 {
+            println!("color: {:?}", color);
+        }
+
+        // update color minmax
+        for c in 0..3 {
+            color_range.0[c] = color_range.0[c].min(color.v[c]);
+            color_range.1[c] = color_range.1[c].max(color.v[c]);
+        }
+
+        // 4 * (current height * image width + current width)
+        let idx = usize::try_from(4*((IMAGE_HEIGHT-1 - px[1]) * IMAGE_WIDTH + px[0])).unwrap();
+        img[idx + 0] = color.v[0];
+        img[idx + 1] = color.v[1];
+        img[idx + 2] = color.v[2];
+        img[idx + 3] = 1.0;
     }
 
     println!("color_range: {:?}", color_range);
@@ -171,4 +175,17 @@ fn write_img(filename: &str, img: Vec<f32>) {
 
     let mut writer = encoder.write_header().unwrap();
     writer.write_image_data(&data).unwrap(); // Save
+}
+
+fn build_scene() -> Jumble {
+    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
+    let mut scene = Jumble::new();
+    scene.add(Box::new(s2));
+    scene.add(Box::new(s1));
+    let mut scene2 = Jumble::new();
+    let s3 = Sphere::new(Vector::init(-0.5,0.5,-1.0), 0.5);
+    scene2.add(Box::new(s3));
+    //scene.add(Box::new(scene2));
+    scene
 }

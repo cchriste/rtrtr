@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 pub trait IntersectableDebug: Intersectable + Debug {}
-use crate::utils::{Ray, Vector};  // Vector-y!
+use crate::utils::{Ray, Vector, dot};  // Vector-y!
 
 #[derive(Debug)]
 pub struct Range {
@@ -26,11 +26,12 @@ pub struct HitRecord {
     pub point: Vector,
     pub normal: Vector,
     pub t: f32,
+    pub front_face: bool,
 }
 
 impl HitRecord {
     pub fn new() -> Self {
-        HitRecord { t: f32::INFINITY, point: Vector::zero(), normal: Vector::zero() }
+        HitRecord { t: f32::INFINITY, point: Vector::zero(), normal: Vector::zero(), front_face: true }
     }
 }
 
@@ -77,8 +78,10 @@ impl Intersectable for Jumble {
             }
             match obj.intersect(&ray, rng) { // TODO: try modifying this in Sphere::intersect to see if it's passing a ref... after I fix the bug if it not working anymore
                 Result::Hit(hit) => {
-                    // println!("hit! t: {:?} p: {:?} n: {:?}",
-                    //          hit.t, hit.point, hit.normal);
+                    if crate::DEBUG {
+                        println!("hit! t: {:?} p: {:?} n: {:?}",
+                                 hit.t, hit.point, hit.normal);
+                    }
                     if hit.t < rng.max && hit.t < rng.min {
                         rng.min = hit.t;
                         record = hit;
@@ -107,20 +110,40 @@ impl Intersectable for Sphere {
     // (just ignore rng for the object and let Jumble sort it out)
     fn intersect(&self, ray: &Ray, _rng: &mut Range) -> Result {
         let oc = ray.origin - self.center;
-        //println!("{:?}",oc);
         let a = ray.dir.len_squared();
-        //println!("{:?}",a);
         let half_b = oc.dot(&ray.dir);
-        //println!("{:?}",b);
         let c = oc.len_squared() - self.radius*self.radius;
-        //println!("{:?}",c);
         let discriminant = half_b*half_b - a*c;
-        //println!("{:?}",discriminant);
         if discriminant >= 0.0 {
-            let t = (-half_b - discriminant.sqrt() ) / a;
+            let disqrt = discriminant.sqrt();
+            let t =
+                if (-half_b - disqrt) >= 0.0 {
+                    (-half_b - disqrt) / a
+                } else {
+                    (-half_b + disqrt) / a
+                };
+            if t < 0.0 {
+                return Result::Miss;
+            }
             let point = ray.at(t);
+
+            // set normal to oppose ray direction and indicate whether it's a
+            // hit against front face or back face of geometry (TODO: move
+            // to HitRecord itself when more geometry is added)
             let normal = (ray.at(t) - self.center).normalize();
-            return Result::Hit(HitRecord { t, point, normal });
+            let front_face = if dot(&normal, &ray.dir) < 0.0 {true} else {false};
+
+            if crate::DEBUG {
+                println!("oc: {:?}",oc);
+                println!("a: {:?}",a);
+                println!("half_b: {:?}",half_b);
+                println!("c: {:?}",c);
+                println!("disc: {:?}",discriminant);
+                println!("t: {:?}", t);
+                println!("ff: {}, normal: {:?}", front_face, normal);
+            }
+
+            return Result::Hit(HitRecord { t, point, normal: if front_face {normal} else {-normal}, front_face });
         }
         Result::Miss
     }

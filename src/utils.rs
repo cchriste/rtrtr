@@ -20,7 +20,17 @@ pub struct Vector {
 //     w: f32,
 // }
 
-use std::ops::{Mul, Div, Sub, Add};
+use std::ops::{Mul, Div, Sub, Add, Neg};
+
+impl Neg for Vector {
+    type Output = Vector;
+
+    fn neg(self) -> Vector {
+        Vector { v: [-self.v[0],
+                     -self.v[1],
+                     -self.v[2]] }
+    }
+}
 
 impl Add for Vector {
     type Output = Vector;
@@ -73,6 +83,9 @@ impl Div<f32> for Vector {
     }
 }
 
+pub fn dot(v1: &Vector, v2: &Vector) -> f32 {
+    v1.dot(v2)
+}
 
 impl Vector {
     pub fn zero() -> Self {
@@ -110,6 +123,10 @@ impl Vector {
                      self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
     }
 
+    pub fn unit_vector(&v: &Vector) -> Vector {
+        v.normalize()
+    }
+
     pub fn normalize(&self) -> Vector {
         let magnitude = self.len();
         Vector { v: [self.v[0] / magnitude,
@@ -119,6 +136,7 @@ impl Vector {
 }
 
 
+#[derive(Debug)]
 pub struct Ray {
     pub origin: Vector,
     pub dir: Vector
@@ -129,7 +147,7 @@ impl Ray {
     pub fn new(origin: Vector, dir: Vector) -> Ray {
         Ray {
             origin,
-            dir  // normalize this here? Or allow rays to live in otra 
+            dir: dir.normalize()  // do we need to normalize this here?
         }
     }
 
