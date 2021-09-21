@@ -20,7 +20,7 @@ pub struct Vector {
 //     w: f32,
 // }
 
-use std::ops::{Mul, Div, Sub, Add, Neg};
+use std::ops::{Mul, Div, Sub, Add, Neg, AddAssign, SubAssign, MulAssign, DivAssign};
 
 impl Neg for Vector {
     type Output = Vector;
@@ -42,6 +42,16 @@ impl Add for Vector {
     }
 }
 
+impl AddAssign for Vector {
+    //type Output = Vector;
+
+    fn add_assign(&mut self, other: Vector) -> () {
+        *self = Vector { v: [self.v[0] + other.v[0],
+                             self.v[1] + other.v[1],
+                             self.v[2] + other.v[2]] }
+    }
+}
+
 impl Sub for Vector {
     type Output = Vector;
 
@@ -52,7 +62,16 @@ impl Sub for Vector {
     }
 }
 
-// yay! we can do k*Vector
+impl SubAssign for Vector {
+    //type Output = Vector;
+
+    fn sub_assign(&mut self, other: Vector) -> () {
+        *self = Vector { v: [self.v[0] - other.v[0],
+                             self.v[1] - other.v[1],
+                             self.v[2] - other.v[2]] }
+    }
+}
+
 impl Mul<f32> for Vector {
     type Output = Self;
 
@@ -63,6 +82,7 @@ impl Mul<f32> for Vector {
     }
 }
 
+// yay! we can do k*Vector
 impl Mul<Vector> for f32 {
     type Output = Vector;
 
@@ -73,6 +93,16 @@ impl Mul<Vector> for f32 {
     }
 }
 
+impl MulAssign<f32> for Vector {
+    //type Output = Self;
+
+    fn mul_assign(&mut self, k: f32) -> () {
+        *self = Self { v: [self.v[0] * k,
+                           self.v[1] * k,
+                           self.v[2] * k] }
+    }
+}
+
 impl Div<f32> for Vector {
     type Output = Self;
 
@@ -80,6 +110,16 @@ impl Div<f32> for Vector {
         Self { v: [self.v[0] / k,
                    self.v[1] / k,
                    self.v[2] / k] }
+    }
+}
+
+impl DivAssign<f32> for Vector {
+    //type Output = Self;
+
+    fn div_assign(&mut self, k: f32) -> () {
+        *self = Self { v: [self.v[0] / k,
+                           self.v[1] / k,
+                           self.v[2] / k] }
     }
 }
 

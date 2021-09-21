@@ -15,17 +15,13 @@ use png;
 use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use rand::Rng;
 
 mod utils;
 use crate::utils::{Ray, Vector, Color};
 
 mod objects;
 use crate::objects::{Sphere, Jumble, Range, Result, Intersectable};
-
-// screen
-const ASPECT: f32 = 16.0/9.0;  // width/height
-const IMAGE_WIDTH: u32 = 200;
-const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
@@ -51,38 +47,80 @@ fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
     }
 }
 
+#[derive(Debug)]
+struct Camera {
+    viewport_height: f32,
+    viewport_width: f32,
+    aspect_ratio: f32,
+    jitter: [f32; 2],
+    focal_length: f32,
+    origin: Vector,
+    right: Vector,
+    up: Vector,
+    z: Vector,  // questionable to keep both z and -z (look)
+    look: Vector,
+    botleft: Vector,  // TODO: alias Point as Vector (will struct Point(Vector) be enough? I think I've already done this... maybe in hello_world? prints kinda wierd though...
+}
+
+impl Camera {
+    pub fn init(aspect_ratio: f32, focal_length: f32, jitter: [f32; 2]) -> Camera {
+        let viewport_height = 2.0;
+        let viewport_width = aspect_ratio * viewport_height;
+        let origin = Vector::zero(); // prolly want this as a param, as well as look, then right and up get calculated here (even for orthogonal)
+        let right = Vector::init(viewport_width, 0.0, 0.0);
+        let up = Vector::init(0.0, viewport_height, 0.0);
+        let z = right.cross(&up).normalize();
+        let look = z * -1.0;
+        let botleft = origin - right/2.0 - up/2.0 + look*focal_length;
+        Camera { aspect_ratio,
+                 focal_length,
+                 viewport_height,
+                 viewport_width,
+                 origin,
+                 right,
+                 up,
+                 z,
+                 look,
+                 botleft,
+                 jitter,
+        }
+    }
+
+    pub fn gen_ray(&self, pct_x: f32, pct_y: f32) -> Ray {
+        let j: [f32; 2] = rand::thread_rng().gen();
+        Ray::new(self.origin,
+                 self.botleft - self.origin +
+                 self.right*(pct_x + (j[0]-0.5)*self.jitter[0]) +
+                 self.up*(pct_y + (j[1]-0.5)*self.jitter[1]))
+    }
+}
 
 fn main() {
+    // screen
+    const ASPECT: f32 = 16.0/9.0;  // width/height
+    const IMAGE_WIDTH: u32 = 200;
+    const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
-    // viewport
-    const VIEWPORT_HEIGHT: f32 = 2.0;
-    const VIEWPORT_WIDTH: f32 = VIEWPORT_HEIGHT * ASPECT;
-    const FOCAL_LENGTH: f32 = 1.0;
+    // camera
+    let camera_viewport_height = 2.0; // secret knowledge
+    let focal_length = 1.0;
+    // this is currently pixel dims, but it can get fancier
+    let blurriness = [camera_viewport_height*ASPECT/IMAGE_WIDTH as f32,
+                      camera_viewport_height/IMAGE_HEIGHT as f32];
 
-    let origin = Vector::init(0.0, 0.0, 0.0);
-    let right = Vector::init(VIEWPORT_WIDTH, 0.0, 0.0);
-    let up = Vector::init(0.0, VIEWPORT_HEIGHT, 0.0);
-    let z = right.cross(&up).normalize();
-    let look = z * -1.0;
-    println!("right: {:?}",right);
-    println!("up: {:?}",up);
-    println!("z: {:?}",z);
-    println!("look: {:?}",look); // not sure I want this, but it'll be the camera's frame soon
-
-    let botleft = origin - right/2.0 - up/2.0 + look*FOCAL_LENGTH;
-    println!("botleft: {:?}", botleft);
+    let camera = Camera::init(ASPECT, focal_length, blurriness);
 
     // allocate image (just set length, don't initialize)
     let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
     unsafe { img.set_len(img.capacity()); }
 
-    // keep track of min/max color values
+    // keep track of min/max color values (TODO: make this a Color)
     let mut color_range: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
 
     // build scene
     let scene = build_scene();
 
-    // trace pixels
+    // indices of pixels to trace
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
@@ -103,13 +141,15 @@ fn main() {
         let pct_x = px[0] as f32 / (IMAGE_WIDTH-1) as f32;
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
-        // ray: origin = O, direction = point moving across image from botleft - origin
-        let p1 = botleft + right*pct_x + up*pct_y;
-        let p0 = origin;
-        let ray = Ray::new(origin, p1 - p0);
-        if DEBUG { println!("ray: {:#?}",ray); }
+        let nsamples = 440;
+        let mut color = Vector::init(0.0,0.0,0.0);
+        for s in 0..nsamples {
+            let ray = camera.gen_ray(pct_x, pct_y);
+            if DEBUG { println!("ray: {:#?}",ray); }
+            color += ray_color(&ray, &scene);
+        }
+        color /= nsamples as f32;
 
-        let color = ray_color(&ray, &scene);
         if DEBUG { //&& px[0] % IMAGE_WIDTH == 0 {
             println!("color: {:?}", color);
         }
@@ -130,7 +170,7 @@ fn main() {
 
     println!("color_range: {:?}", color_range);
 
-    write_img(r"/tmp/canvas.png", img);
+    write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH, IMAGE_HEIGHT);
     conclude("Goodbye fellow Rustaceans!");
 }
 
@@ -143,7 +183,9 @@ fn conclude(msg: &str) {
     say(message.as_bytes(), width, &mut writer).unwrap();
 }
 
-fn write_img(filename: &str, img: Vec<f32>) {
+fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
+    assert!(img.len() == (width * height * 4) as usize); // rgba
+
     // For reading and opening files
     use std::path::Path;
     use std::fs::File;
@@ -152,7 +194,7 @@ fn write_img(filename: &str, img: Vec<f32>) {
     let file = File::create(path).unwrap();
     let ref mut w = BufWriter::new(file);
 
-    let mut encoder = png::Encoder::new(w, IMAGE_WIDTH, IMAGE_HEIGHT);
+    let mut encoder = png::Encoder::new(w, width, height);
     encoder.set_color(png::ColorType::Rgba);
     encoder.set_depth(png::BitDepth::Eight);
     encoder.set_trns(vec!(0xFFu8, 0xFFu8, 0xFFu8, 0xFFu8));
@@ -170,7 +212,7 @@ fn write_img(filename: &str, img: Vec<f32>) {
     let mut data: Vec<u8> = Vec::with_capacity(img.len());
     unsafe { data.set_len(data.capacity()); }
     for i in 0..img.len() {
-        data[i] = (255.999 * img[i]) as u8;
+        data[i] = ((256f32-f32::EPSILON) * img[i]) as u8;
     }
 
     let mut writer = encoder.write_header().unwrap();
