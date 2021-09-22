@@ -54,6 +54,7 @@ struct Camera {
     aspect_ratio: f32,
     jitter: [f32; 2],
     focal_length: f32,
+    vfov: f32, // in degrees
     origin: Vector,
     right: Vector,
     up: Vector,
@@ -63,8 +64,21 @@ struct Camera {
 }
 
 impl Camera {
-    pub fn init(aspect_ratio: f32, focal_length: f32, jitter: [f32; 2]) -> Camera {
-        let viewport_height = 2.0;
+    pub fn init(aspect_ratio: f32, focal_length: f32, vfov: f32, jitter: [f32; 2]) -> Camera {
+        //
+        // Compute viewport height based on vertical field of view.
+        //
+        //     /|\
+        //    / | 1/2 vp_height
+        //   /  |/
+        //fov---|
+        //   \  |
+        //    \ |
+        //     \|
+        //
+        // tan (1/2 fov) = 1/2 vp height / focal len
+        //
+        let viewport_height = focal_length*2.0 * (vfov.to_radians()/2.0).tan();
         let viewport_width = aspect_ratio * viewport_height;
         let origin = Vector::zero(); // prolly want this as a param, as well as look, then right and up get calculated here (even for orthogonal)
         let right = Vector::init(viewport_width, 0.0, 0.0);
@@ -73,6 +87,7 @@ impl Camera {
         let look = z * -1.0;
         let botleft = origin - right/2.0 - up/2.0 + look*focal_length;
         Camera { aspect_ratio,
+                 vfov,
                  focal_length,
                  viewport_height,
                  viewport_width,
@@ -104,11 +119,12 @@ fn main() {
     // camera
     let camera_viewport_height = 2.0; // secret knowledge
     let focal_length = 1.0;
+    let fov = 90.0;
     // this is currently pixel dims, but it can get fancier
     let blurriness = [camera_viewport_height*ASPECT/IMAGE_WIDTH as f32,
                       camera_viewport_height/IMAGE_HEIGHT as f32];
 
-    let camera = Camera::init(ASPECT, focal_length, blurriness);
+    let camera = Camera::init(ASPECT, focal_length, fov, blurriness);
 
     // allocate image (just set length, don't initialize)
     let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
@@ -220,8 +236,12 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
 }
 
 fn build_scene() -> Jumble {
-    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
+    // test fov is correctly computed
+    let radius = (std::f32::consts::PI / 4.0).cos();
+    let s1 = Sphere::new(Vector::init(-radius,0.0,-1.0), radius);
+    let s2 = Sphere::new(Vector::init(radius,0.0,-1.0), radius);
+    // let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    // let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
     let mut scene = Jumble::new();
     scene.add(Box::new(s2));
     scene.add(Box::new(s1));
