@@ -18,10 +18,10 @@ use std::convert::TryInto;
 use rand::Rng;
 
 mod utils;
-use crate::utils::{Ray, Vector, Color};
+use crate::utils::{Ray, Vector, Color, Range};
 
 mod objects;
-use crate::objects::{Sphere, Jumble, Range, Result, Intersectable};
+use crate::objects::{Sphere, Jumble, Result, Intersectable};
 
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color

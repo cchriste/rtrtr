@@ -205,3 +205,39 @@ impl Ray {
     }
 }
 
+
+pub trait OutsideRange {
+    fn outside(self, rng: &Range) -> bool;
+}
+
+#[derive(Debug)]
+pub struct Range {
+    pub min: f32,
+    pub max: f32,
+}
+
+
+impl OutsideRange for f32 {
+    fn outside(self: f32, rng: &Range) -> bool {
+        rng.outside(self)
+    }
+}
+
+// a half-open range [tmin, tmax)
+impl Range {
+    pub fn default() -> Self {
+        Range::new(0.0, f32::INFINITY)
+    }
+
+    pub fn new(min: f32, max: f32) -> Self {
+        Range { min, max }
+    }
+
+    pub fn inside(&self, val: f32) -> bool {
+        !self.outside(val)
+    }
+
+    pub fn outside(&self, val: f32) -> bool {
+        val < self.min || self.max < val
+    }
+}

@@ -2,24 +2,8 @@
 
 use std::fmt::Debug;
 pub trait IntersectableDebug: Intersectable + Debug {}
-use crate::utils::{Ray, Vector, dot, print_type_of};  // Vector-y!
-
-#[derive(Debug)]
-pub struct Range {
-    pub min: f32,
-    pub max: f32,
-}
-
-// a range, such as [tmin, tmax)
-impl Range {
-    pub fn default() -> Self {
-        Range::new(f32::INFINITY, f32::INFINITY)
-    }
-
-    pub fn new(min: f32, max: f32) -> Self {
-        Range { min, max }
-    }
-}
+use crate::utils::{Ray, Vector, dot, print_type_of, Range, OutsideRange};  // Vector-y!
+//TODO: use core::ops::Range instead of this (https://doc.rust-lang.org/core/ops/struct.Range.html)
 
 // hit record
 #[derive(Debug)]
@@ -84,18 +68,23 @@ impl Intersectable for Jumble {
             }
             match obj.intersect(&ray, rng, indent_by+2) {
                 Result::Hit(hit) => {
+                    hit_something = true;
                     if crate::DEBUG {
                         println!("{}hit obj! t: {:?} p: {:?} n: {:?}", indent,
                                  hit.t, hit.point, hit.normal);
                     }
-                    if hit.t < rng.max && hit.t <= rng.min {
+                    if hit.t.outside(rng) {
+                        if crate::DEBUG {
+                            println!("{}hit, but not closest",indent);
+                        }
+                    }
+                    else {
                         if crate::DEBUG {
                             println!("{}closest so far",indent);
                         }
                         rng.min = hit.t;
                         record = hit;
                     }
-                    hit_something = true;
                 },
                 Result::Miss => (),
             }
@@ -119,52 +108,44 @@ pub struct Sphere {
 impl IntersectableDebug for Sphere {}
 
 impl Intersectable for Sphere {
-    // (just ignore rng for the object and let Jumble sort it out)
-    fn intersect(&self, ray: &Ray, _rng: &mut Range, indent_by: usize) -> Result {
+    fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
         if crate::DEBUG {
-            println!("{}Sphere {:?}, ray: {:?}, _rng: {:?}", indent, self, ray, _rng);
+            println!("{}Sphere {:?}, ray: {:?}, rng: {:?}", indent, self, ray, rng);
         }
         let oc = ray.origin - self.center;
         let a = ray.dir.len_squared();
         let half_b = oc.dot(&ray.dir);
         let c = oc.len_squared() - self.radius*self.radius;
         let discriminant = half_b*half_b - a*c;
-        if discriminant >= 0.0 {
-            let disqrt = discriminant.sqrt();
-            let t =
-                if (-half_b - disqrt) >= 0.0 {
-                    (-half_b - disqrt) / a
-                } else {
-                    (-half_b + disqrt) / a
-                };
-            if t < 0.0 {
-                //println!("{}Missed Sphere", indent);
-                return Result::Miss;
-            }
-            let point = ray.at(t);
+        if discriminant < 0.0 { return Result::Miss; }
+        let disqrt = discriminant.sqrt();
+        let t0 = (-half_b - disqrt) / a;
+        let t1 = (-half_b + disqrt) / a; // half decent optimization won't compute this if unnecessary
+        let t = if t0.outside(rng) { t1 } else { t0 };
+        if t.outside(rng) { return Result::Miss; }
+        //if rng.outside(t) { return Result::Miss; }
+        let point = ray.at(t);
 
-            // set normal to oppose ray direction and indicate whether it's a
-            // hit against front face or back face of geometry (TODO: move
-            // to HitRecord itself when more geometry is added)
-            let normal = (ray.at(t) - self.center).normalize();
-            let front_face = if dot(&normal, &ray.dir) < 0.0 {true} else {false};
+        // set normal to oppose ray direction and indicate whether it's a
+        // hit against front face or back face of geometry (TODO: move
+        // to HitRecord itself when more geometry is added)
+        let normal = (ray.at(t) - self.center).normalize();
+        let front_face = if dot(&normal, &ray.dir) < 0.0 {true} else {false};
 
-            if crate::DEBUG {
-                // println!("oc: {:?}",oc);
-                // println!("a: {:?}",a);
-                // println!("half_b: {:?}",half_b);
-                // println!("c: {:?}",c);
-                // println!("disc: {:?}",discriminant);
-                println!("{}t: {:?}", indent, t);
-                println!("{}ff: {}, normal: {:?}", indent, front_face, normal);
-            }
-
-            return Result::Hit(HitRecord { t, point, normal: if front_face {normal} else {-normal}, front_face });
+        if crate::DEBUG {
+            // println!("oc: {:?}",oc);
+            // println!("a: {:?}",a);
+            // println!("half_b: {:?}",half_b);
+            // println!("c: {:?}",c);
+            // println!("disc: {:?}",discriminant);
+            println!("{}t: {:?}", indent, t);
+            println!("{}ff: {}, normal: {:?}", indent, front_face, normal);
         }
-        //println!("{}Missed Sphere", indent);
-        Result::Miss
+
+        //println!("{}returning a hit",indent);
+        return Result::Hit(HitRecord { t, point, normal: if front_face {normal} else {-normal}, front_face });
     }
 }
 
