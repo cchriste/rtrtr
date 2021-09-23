@@ -27,7 +27,7 @@ use crate::objects::{Sphere, Jumble, Range, Result, Intersectable};
 fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
     let mut range = Range::default();
     // println!("range: {:?}", range);
-    match scene.intersect(ray, &mut range) {
+    match scene.intersect(ray, &mut range, 0) {
         Result::Hit(hit) => {
             if crate::DEBUG {
                 println!("HIT! time: {}, point: {:?}, normal: {:?}",
@@ -140,13 +140,15 @@ fn main() {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = 0;
+    let start_row = if DEBUG {IMAGE_HEIGHT/2+10} else {0};
     let end_row = IMAGE_HEIGHT;
-    let start_col = if DEBUG {IMAGE_WIDTH/2} else {0};
+    let step_y: usize = if DEBUG { (IMAGE_HEIGHT/2).try_into().unwrap() } else { 1 };
+
+    let start_col = if DEBUG {IMAGE_WIDTH/4} else {0};
     let end_col = IMAGE_WIDTH;
-    let step_y: usize = if DEBUG { (IMAGE_HEIGHT / 3).try_into().unwrap() } else { 1 };
-    let step_x: usize = if DEBUG { (IMAGE_WIDTH / 2).try_into().unwrap() } else { 1 };
-    for j in (start_row..end_row).step_by(step_y).rev() { 
+    let step_x: usize = if DEBUG { (IMAGE_WIDTH/4).try_into().unwrap() } else { 1 };
+
+    for j in (start_row..end_row).step_by(step_y) { 
         for i in (start_col..end_col).step_by(step_x) {
             if DEBUG { println!("i,j: {},{}", i,j); }
             pixels.push([i, j]);
@@ -157,17 +159,17 @@ fn main() {
         let pct_x = px[0] as f32 / (IMAGE_WIDTH-1) as f32;
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
-        let nsamples = 440;
+        let nsamples = if !DEBUG {44} else {1};
         let mut color = Vector::init(0.0,0.0,0.0);
         for s in 0..nsamples {
             let ray = camera.gen_ray(pct_x, pct_y);
-            if DEBUG { println!("ray: {:#?}",ray); }
+            if DEBUG { println!("ray: {:?}",ray); }
             color += ray_color(&ray, &scene);
         }
         color /= nsamples as f32;
 
         if DEBUG { //&& px[0] % IMAGE_WIDTH == 0 {
-            println!("color: {:?}", color);
+            println!("color: {:?}\n", color);
         }
 
         // update color minmax
@@ -236,15 +238,21 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
 }
 
 fn build_scene() -> Jumble {
-    // test fov is correctly computed
-    let radius = (std::f32::consts::PI / 4.0).cos();
-    let s1 = Sphere::new(Vector::init(-radius,0.0,-1.0), radius);
-    let s2 = Sphere::new(Vector::init(radius,0.0,-1.0), radius);
-    // let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    // let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
     let mut scene = Jumble::new();
-    scene.add(Box::new(s2));
-    scene.add(Box::new(s1));
+
+    // test fov is correctly computed
+    let mut fov_test_scene = Jumble::new();
+    let radius = (std::f32::consts::PI / 4.0).cos();
+    let sl = Sphere::new(Vector::init(-radius,0.0,-1.0), radius);
+    let sr = Sphere::new(Vector::init(radius,0.0,-1.0), radius);
+    fov_test_scene.add(Box::new(sl));
+    fov_test_scene.add(Box::new(sr));
+    scene.add(Box::new(fov_test_scene));
+
+    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
+    // scene.add(Box::new(s2));
+    // scene.add(Box::new(s1));
     let mut scene2 = Jumble::new();
     let s3 = Sphere::new(Vector::init(-0.5,0.5,-1.0), 0.5);
     scene2.add(Box::new(s3));

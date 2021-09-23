@@ -4,6 +4,12 @@
 pub struct Color([f32; 4]);
 //instantiate using: `let c = vec![r,g,b,a];`
 
+// pretty handy... not really, just prints what the object implements
+pub fn print_type_of<T>(_: &T) {
+    println!("{}", std::any::type_name::<T>())
+}
+
+
 #[derive(Debug)]  // enables it to be printed. What else?
 #[derive(Copy, Clone)]
 pub struct Vector {

@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 pub trait IntersectableDebug: Intersectable + Debug {}
-use crate::utils::{Ray, Vector, dot};  // Vector-y!
+use crate::utils::{Ray, Vector, dot, print_type_of};  // Vector-y!
 
 #[derive(Debug)]
 pub struct Range {
@@ -22,6 +22,7 @@ impl Range {
 }
 
 // hit record
+#[derive(Debug)]
 pub struct HitRecord {
     pub point: Vector,
     pub normal: Vector,
@@ -42,7 +43,7 @@ pub enum Result {  // TODO: rename me to... ?
 }
 
 pub trait Intersectable {
-    fn intersect(&self, ray: &Ray, rng: &mut Range) -> Result {
+    fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
         return Result::Miss;
     }
 }
@@ -67,22 +68,30 @@ impl Jumble {
 impl IntersectableDebug for Jumble {}
 
 impl Intersectable for Jumble {
-    fn intersect(&self, ray: &Ray, rng: &mut Range) -> Result {
+    fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
+        let indent = vec![' '; indent_by];
+        let indent: String = indent.iter().cloned().collect();
         let mut hit_something = false;
         let mut record = HitRecord::new();
-        //println!("Jumble::intersect");
+        if crate::DEBUG {
+            println!("{}Jumble::intersect, ray: {:?}", indent, ray);
+        }
         for obj in self.arr.iter() {
             if crate::DEBUG {
-                println!("obj: {:?}", obj);
-                println!("rng: {:?}", rng);
+                //print_type_of(obj); // prints interfaces obj implements (i.e., not useful)
+                //println!("obj: {:?}", obj); // can just be too much (e.g., array of objects)
+                println!("{}rng: {:?}", indent, rng);
             }
-            match obj.intersect(&ray, rng) { // TODO: try modifying this in Sphere::intersect to see if it's passing a ref... after I fix the bug if it not working anymore
+            match obj.intersect(&ray, rng, indent_by+2) {
                 Result::Hit(hit) => {
                     if crate::DEBUG {
-                        println!("hit! t: {:?} p: {:?} n: {:?}",
+                        println!("{}hit obj! t: {:?} p: {:?} n: {:?}", indent,
                                  hit.t, hit.point, hit.normal);
                     }
-                    if hit.t < rng.max && hit.t < rng.min {
+                    if hit.t < rng.max && hit.t <= rng.min {
+                        if crate::DEBUG {
+                            println!("{}closest so far",indent);
+                        }
                         rng.min = hit.t;
                         record = hit;
                     }
@@ -92,11 +101,14 @@ impl Intersectable for Jumble {
             }
         }
         if hit_something { // TODO: I think this can be simpler, maybe no need to keep track of hit_something.
+            //println!("{}returning {:?}", indent, record);
             return Result::Hit(record);
         }
+        if crate::DEBUG { println!("{}Missed Jumble altogether! Air rayyyyy!", indent);}
         Result::Miss
     }
 }
+
 
 #[derive(Debug)]
 pub struct Sphere {
@@ -108,7 +120,12 @@ impl IntersectableDebug for Sphere {}
 
 impl Intersectable for Sphere {
     // (just ignore rng for the object and let Jumble sort it out)
-    fn intersect(&self, ray: &Ray, _rng: &mut Range) -> Result {
+    fn intersect(&self, ray: &Ray, _rng: &mut Range, indent_by: usize) -> Result {
+        let indent = vec![' '; indent_by];
+        let indent: String = indent.iter().cloned().collect();
+        if crate::DEBUG {
+            println!("{}Sphere {:?}, ray: {:?}, _rng: {:?}", indent, self, ray, _rng);
+        }
         let oc = ray.origin - self.center;
         let a = ray.dir.len_squared();
         let half_b = oc.dot(&ray.dir);
@@ -123,6 +140,7 @@ impl Intersectable for Sphere {
                     (-half_b + disqrt) / a
                 };
             if t < 0.0 {
+                //println!("{}Missed Sphere", indent);
                 return Result::Miss;
             }
             let point = ray.at(t);
@@ -134,17 +152,18 @@ impl Intersectable for Sphere {
             let front_face = if dot(&normal, &ray.dir) < 0.0 {true} else {false};
 
             if crate::DEBUG {
-                println!("oc: {:?}",oc);
-                println!("a: {:?}",a);
-                println!("half_b: {:?}",half_b);
-                println!("c: {:?}",c);
-                println!("disc: {:?}",discriminant);
-                println!("t: {:?}", t);
-                println!("ff: {}, normal: {:?}", front_face, normal);
+                // println!("oc: {:?}",oc);
+                // println!("a: {:?}",a);
+                // println!("half_b: {:?}",half_b);
+                // println!("c: {:?}",c);
+                // println!("disc: {:?}",discriminant);
+                println!("{}t: {:?}", indent, t);
+                println!("{}ff: {}, normal: {:?}", indent, front_face, normal);
             }
 
             return Result::Hit(HitRecord { t, point, normal: if front_face {normal} else {-normal}, front_face });
         }
+        //println!("{}Missed Sphere", indent);
         Result::Miss
     }
 }
