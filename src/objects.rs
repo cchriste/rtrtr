@@ -2,7 +2,7 @@
 
 use std::fmt::Debug;
 pub trait IntersectableDebug: Intersectable + Debug {}
-use crate::utils::{Ray, Vector, dot, print_type_of, Range, OutsideRange};  // Vector-y!
+use crate::utils::{Ray, Vector, dot, print_type_of, Range, OutsideRange, Matrix};  // Vector-y!
 //TODO: use core::ops::Range instead of this (https://doc.rust-lang.org/core/ops/struct.Range.html)
 
 // hit record
@@ -36,11 +36,15 @@ pub trait Intersectable {
 #[derive(Debug)]
 pub struct Jumble {
     arr: Vec<Box<dyn IntersectableDebug>>,
+    pub csys: Matrix,
 }
 
 impl Jumble {
     pub fn new() -> Jumble {
-        Jumble { arr: Vec::new() }
+        Jumble {
+            arr: Vec::new(),
+            csys: Matrix::identity(),
+        }
     }
 
     //pub fn add(&mut self, obj: Box<dyn Intersectable>) {
@@ -53,8 +57,17 @@ impl IntersectableDebug for Jumble {}
 
 impl Intersectable for Jumble {
     fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
+        // ugh: this is two big lines just to indent by a few spaces
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
+
+        // transform ray into this Jumble's coordinate system
+        // TODO: ...and use it 
+        let new_ray = ray.transform(&self.csys);
+        if crate::DEBUG {
+            println!("transformed ray: {:?}", new_ray);
+        }
+
         let mut hit_something = false;
         let mut record = HitRecord::new();
         if crate::DEBUG {
@@ -89,8 +102,14 @@ impl Intersectable for Jumble {
                 Result::Miss => (),
             }
         }
-        if hit_something { // TODO: I think this can be simpler, maybe no need to keep track of hit_something.
-            //println!("{}returning {:?}", indent, record);
+        if hit_something { // TODO: I think this can be simpler; no need to keep track of hit_something.
+            // TODO: transform hit point and its normal out of csys
+            // remember, normal is trickier
+
+            if crate::DEBUG {
+                println!("{}returning {:?}", indent, record);
+            }
+
             return Result::Hit(record);
         }
         if crate::DEBUG { println!("{}Missed Jumble altogether! Air rayyyyy!", indent);}
