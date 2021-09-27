@@ -1,5 +1,12 @@
-// my first module... called utils, but it's `[pub] mod utils` is actually it's
-// filename, not a declaration. Confusing at first, but I think I got it.
+// mod utils
+// Color, Vec3, Vec4, Axis, Matrix, Range, Ray
+// TODO:
+//  [] trade Range for std version
+//  [] change Vector -> Vec3, ::init to ::new
+//  [] create str ops for Vec3 so they, and wrappers like Point and Color) are tolerable to print
+//  [] create chainable matrix ops (M.translate(t).rotate(r,Axis::X).scale(s))
+//  [] remember how to properly transform normals back into world space (M⁻¹)ᵀ*n
+//   - transforming ray into jumble space is actually M⁻¹*v, and M⁻¹*p
 
 pub struct Color([f32; 4]);
 //instantiate using: `let c = vec![r,g,b,a];`
@@ -9,16 +16,12 @@ pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
 
-pub enum Axis {
-    X,
-    Y,
-    Z,
-}
+pub enum Axis { X, Y, Z }
 
-#[derive(Debug)]  // enables it to be printed. What else?
+#[derive(Debug)]
 #[derive(Copy, Clone)]
 pub struct Vector {
-    pub v: [f32; 3],  // make it 4 elements to add w/a
+    pub v: [f32; 3],
 }
 
 use std::ops::{Mul, Div, Sub, Add, Neg, AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
@@ -43,7 +46,6 @@ impl IndexMut<usize> for Vector {
 
 impl Neg for Vector {
     type Output = Vector;
-
     fn neg(self) -> Vector {
         Vector { v: [-self.v[0],
                      -self.v[1],
@@ -53,7 +55,6 @@ impl Neg for Vector {
 
 impl Add for Vector {
     type Output = Vector;
-
     fn add(self, other: Vector) -> Vector {
         Vector { v: [self.v[0] + other.v[0],
                      self.v[1] + other.v[1],
@@ -62,8 +63,6 @@ impl Add for Vector {
 }
 
 impl AddAssign for Vector {
-    //type Output = Vector;
-
     fn add_assign(&mut self, other: Vector) -> () {
         *self = Vector { v: [self.v[0] + other.v[0],
                              self.v[1] + other.v[1],
@@ -73,7 +72,6 @@ impl AddAssign for Vector {
 
 impl Sub for Vector {
     type Output = Vector;
-
     fn sub(self, other: Vector) -> Vector {
         Vector { v: [self.v[0] - other.v[0],
                      self.v[1] - other.v[1],
@@ -82,8 +80,6 @@ impl Sub for Vector {
 }
 
 impl SubAssign for Vector {
-    //type Output = Vector;
-
     fn sub_assign(&mut self, other: Vector) -> () {
         *self = Vector { v: [self.v[0] - other.v[0],
                              self.v[1] - other.v[1],
@@ -93,7 +89,6 @@ impl SubAssign for Vector {
 
 impl Mul<f32> for Vector {
     type Output = Self;
-
     fn mul(self, k: f32) -> Self {
         Self { v: [self.v[0] * k,
                    self.v[1] * k,
@@ -104,7 +99,6 @@ impl Mul<f32> for Vector {
 // yay! we can do k*Vector
 impl Mul<Vector> for f32 {
     type Output = Vector;
-
     fn mul(self, vec: Vector) -> Vector {
         Vector { v: [vec.v[0] * self,
                      vec.v[1] * self,
@@ -122,7 +116,6 @@ impl MulAssign<f32> for Vector {
 
 impl Div<f32> for Vector {
     type Output = Self;
-
     fn div(self, k: f32) -> Self {
         Self { v: [self.v[0] / k,
                    self.v[1] / k,
@@ -151,13 +144,9 @@ impl Vector {
         Self { v: [x, y, z] }
     }
 
-    // Thursday, September 9, 2021 - this is growing on me... maybe functions?
-    // ...that returns refs? so v.x() = 42.0;
-    // alternative universe (maybe possible with...? maybe *self.v[0] = ?)
-    pub fn x(&self) -> &f32 { &self.v[0] } // TODO: test me! 
+    pub fn x(&self) -> f32 { self.v[0] }
     pub fn y(&self) -> f32 { self.v[1] }
     pub fn z(&self) -> f32 { self.v[2] }
-    //pub fn w(&self) -> f32 { self.v[3] }
 
     pub fn len_squared(&self) -> f32 {
         self.v[0]*self.v[0] + self.v[1]*self.v[1] + self.v[2]*self.v[2]
@@ -219,19 +208,19 @@ impl Ray {
     }
 
     pub fn transform(&self, csys: &Matrix) -> Ray {
-        let o = Vec4::new([*self.origin.x(), // FIXME: decide if returning reference is worthwhile
+        let o = Vec4::new([self.origin.x(),
                            self.origin.y(),
                            self.origin.z(),
                            1.0]);
-        let v = Vec4::new([*self.dir.x(),
+        let v = Vec4::new([self.dir.x(),
                            self.dir.y(),
                            self.dir.z(),
                            0.0]);
-        let o = *csys * o;  // FIXME: derefernce argument or just pass copy?
+        let o = *csys * o;  // ?: derefernce argument or just pass copy?
         let v = *csys * v;
         Ray {
-            origin: Vector::init(*o.x(), o.y(), o.z()),
-            dir: Vector::init(*v.x(), v.y(), v.z()),
+            origin: Vector::init(o.x(), o.y(), o.z()),
+            dir: Vector::init(v.x(), v.y(), v.z()),
         }
     }
 }
@@ -375,7 +364,7 @@ impl Matrix {
     }
 
     pub fn translate(&mut self, t: Vector) -> () {
-        self.rows[0][3] += *t.x();
+        self.rows[0][3] += t.x();
         self.rows[1][3] += t.y();
         self.rows[2][3] += t.z();
     }
@@ -470,7 +459,6 @@ impl IndexMut<usize> for Vec4 {
 
 impl Neg for Vec4 {
     type Output = Vec4;
-
     fn neg(self) -> Vec4 {
         Vec4 { v: [-self.v[0],
                    -self.v[1],
@@ -609,7 +597,7 @@ impl Vec4 {
         Self { v }
     }
 
-    pub fn x(&self) -> &f32 { println!("returning ref to x(); does it work?"); &self.v[0] } // TODO: test me! 
+    pub fn x(&self) -> f32 { self.v[0] }
     pub fn y(&self) -> f32 { self.v[1] }
     pub fn z(&self) -> f32 { self.v[2] }
     pub fn w(&self) -> f32 { self.v[3] }
