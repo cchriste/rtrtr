@@ -8,7 +8,8 @@
 #![allow(unused_imports)]
 //#![allow(non_snake_case)]
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
+const LITE: bool = true;
 
 use ferris_says::say;
 use png;
@@ -21,7 +22,7 @@ mod utils;
 use crate::utils::{Ray, Vector, Color, Range};
 
 mod objects;
-use crate::objects::{Sphere, Jumble, Result, Intersectable};
+use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
 
 mod camera; // FIXME: shouldn't this [be able to] go in camera.rs?
 use crate::camera::Camera;
@@ -30,8 +31,9 @@ use crate::camera::Camera;
 fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
     let mut range = Range::default();
     // println!("range: {:?}", range);
-    match scene.intersect(ray, &mut range, 0) {
-        Result::Hit(hit) => {
+    let mut hit = HitRecord::new();
+    match scene.intersect(ray, &mut range, &mut hit, /*depth,*/ 0/*indent*/) {
+        Shot::Hit => {
             if crate::DEBUG {
                 println!("HIT! time: {}, point: {:?}, normal: {:?}",
                          hit.t, hit.point, hit.normal);
@@ -40,7 +42,7 @@ fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
                                     hit.normal.y()+1.0,
                                     hit.normal.z()+1.0);
         },
-        Result::Miss => {
+        Shot::Miss => {
             let unit_dir = ray.dir.normalize();
             let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
             let white = Vector::init(1.0, 1.0, 1.0);
@@ -55,14 +57,16 @@ fn main() {
     const ASPECT: f32 = 16.0/9.0;  // width/height
     const IMAGE_WIDTH: u32 = 200;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
+    const SAMPLES_PER_PIXEL: u32 = if LITE {1} else {100};
 
     // camera
-    let camera_viewport_height = 2.0; // secret knowledge
     let focal_length = 1.0;
-    let fov = 90.0;
+    let fov: f32 = 90.0;
+    let viewport_height = focal_length*2.0 * (fov.to_radians()/2.0).tan(); // I don't like manually computing this here since it's already done in the camera; maybe move blurriness to the camera, shake it up and jitter some samples
+
     // this is currently pixel dims, but it can get fancier
-    let blurriness = [camera_viewport_height*ASPECT/IMAGE_WIDTH as f32,
-                      camera_viewport_height/IMAGE_HEIGHT as f32];
+    let blurriness = [viewport_height*ASPECT/IMAGE_WIDTH as f32,
+                      viewport_height/IMAGE_HEIGHT as f32];
 
     let camera = Camera::init(ASPECT, focal_length, fov, blurriness);
 
@@ -99,7 +103,7 @@ fn main() {
         let pct_x = px[0] as f32 / (IMAGE_WIDTH-1) as f32;
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
-        let nsamples = if !DEBUG {44} else {1};
+        let nsamples = if !DEBUG {SAMPLES_PER_PIXEL} else {1};
         let mut color = Vector::init(0.0,0.0,0.0);
         for s in 0..nsamples {
             let ray = camera.gen_ray(pct_x, pct_y);
@@ -178,6 +182,12 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
 }
 
 fn build_scene() -> Jumble {
+    // instances of geometry
+    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
+    let s3 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+
+    // the main stage
     let mut scene = Jumble::new();
 
     // test fov is correctly computed
@@ -187,15 +197,17 @@ fn build_scene() -> Jumble {
     let sr = Sphere::new(Vector::init(radius,0.0,-1.0), radius);
     fov_test_scene.add(Box::new(sl));
     fov_test_scene.add(Box::new(sr));
-    scene.add(Box::new(fov_test_scene));
+    //scene.add(Box::new(fov_test_scene));
 
-    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
-    // scene.add(Box::new(s2));
-    // scene.add(Box::new(s1));
-    let mut scene2 = Jumble::new();
-    let s3 = Sphere::new(Vector::init(-0.5,0.5,-1.0), 0.5);
-    scene2.add(Box::new(s3));
-    //scene.add(Box::new(scene2));
+    let mut sub_scene = Jumble::new();
+    sub_scene.add(Box::new(s1));
+    sub_scene.add(Box::new(s2));
+    scene.add(Box::new(sub_scene));
+
+    let mut squishy_scene = Jumble::new();
+    squishy_scene.csys.translate(Vector { v: [-0.25, 0.25, 0.0] });
+    squishy_scene.add(Box::new(s3)); // TODO: add same geometry to diff scenes (one thing at a time)
+    //scene.add(Box::new(squishy_scene));
+
     scene
 }

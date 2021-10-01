@@ -1,9 +1,15 @@
-// intersectable objects
+//
+// Intersectable objects and groups thereof.
+//
 
 use std::fmt::Debug;
-pub trait IntersectableDebug: Intersectable + Debug {}
+
+// The reason we have to create this "dual-trait" is because objects in Jumble
+// are `Box<dyn Intersectable>`, which can't be presumed Debug.
+// TODO: try creating mod.Intersectable so this can be Intersectable: mod.Intersectable + Debug
+//pub trait Intersectable: Intersectable + Debug {}
+
 use crate::utils::{Ray, Vector, dot, print_type_of, Range, OutsideRange, Matrix};  // Vector-y!
-//TODO: use core::ops::Range instead of this (https://doc.rust-lang.org/core/ops/struct.Range.html)
 
 // hit record
 #[derive(Debug)]
@@ -20,23 +26,26 @@ impl HitRecord {
     }
 }
 
-// result of Ray intersection with some Jumble
-pub enum Result {  // TODO: rename me to... ?
-    Hit(HitRecord),
-    Miss
+// result of Ray intersection with some Intersectable
+pub enum Shot {
+    Hit,
+    Miss,
 }
 
 pub trait Intersectable {
-    fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
-        return Result::Miss;
-    }
+    // intersect ray with this object or collection
+    // - Range is global allowed distance along ray
+    // - HitRecord is updated when there is an intersection
+    // - indent is used to print debugging output
+    fn intersect(&self, ray: &Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot;
 }
 
 // buncha stuff that can be intersected, including itself
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct Jumble {
-    arr: Vec<Box<dyn IntersectableDebug>>,
+    arr: Vec<Box<dyn Intersectable>>,
     pub csys: Matrix,
+    //bbox: BoundingBox, //TODO
 }
 
 impl Jumble {
@@ -47,17 +56,16 @@ impl Jumble {
         }
     }
 
-    //pub fn add(&mut self, obj: Box<dyn Intersectable>) {
-    pub fn add(&mut self, obj: Box<dyn IntersectableDebug>) {
+    pub fn add(&mut self, obj: Box<dyn Intersectable>) {
         self.arr.push(obj)
     }
+
+    //fn update_bbox() {... // TODO
 }
 
-impl IntersectableDebug for Jumble {}
-
 impl Intersectable for Jumble {
-    fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
-        // ugh: this is two big lines just to indent by a few spaces
+    fn intersect(&self, ray: &Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot {
+        // ugh: this is two big lines just to indent by a few spaces; TODO: macro me?
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
 
@@ -69,37 +77,36 @@ impl Intersectable for Jumble {
         }
 
         let mut hit_something = false;
-        let mut record = HitRecord::new();
         if crate::DEBUG {
             println!("{}Jumble::intersect, ray: {:?}", indent, ray);
         }
-        for obj in self.arr.iter() {
+        for obj in self.arr.iter() {  // NOTE: we'll leave parallelization for another day
             if crate::DEBUG {
                 //print_type_of(obj); // prints interfaces obj implements (i.e., not useful)
                 //println!("obj: {:?}", obj); // can just be too much (e.g., array of objects)
                 println!("{}rng: {:?}", indent, rng);
             }
-            match obj.intersect(&ray, rng, indent_by+2) {
-                Result::Hit(hit) => {
+            match obj.intersect(&ray, rng, hit, indent_by+2) {
+                Shot::Hit => { // NOTE: a long-winded way to say `hit_something |= intersect()
                     hit_something = true;
                     if crate::DEBUG {
-                        println!("{}hit obj! t: {:?} p: {:?} n: {:?}", indent,
+                        println!("{}new_hit obj! t: {:?} p: {:?} n: {:?}", indent,
                                  hit.t, hit.point, hit.normal);
                     }
-                    if hit.t.outside(rng) {
-                        if crate::DEBUG {
-                            println!("{}hit, but not closest",indent);
-                        }
-                    }
-                    else {
-                        if crate::DEBUG {
-                            println!("{}closest so far",indent);
-                        }
-                        rng.min = hit.t;
-                        record = hit;
-                    }
+                    // if new_hit.t.outside(rng) {
+                    //     if crate::DEBUG {
+                    //         println!("{}hit, but not closest",indent);
+                    //     }
+                    // }
+                    // else {
+                    //     if crate::DEBUG {
+                    //         println!("{}closest so far",indent);
+                    //     }
+                    //     //rng.min = new_hit.t;
+                    //     hit = new_hit;
+                    // }
                 },
-                Result::Miss => (),
+                Shot::Miss => (),
             }
         }
         if hit_something { // TODO: I think this can be simpler; no need to keep track of hit_something.
@@ -107,13 +114,13 @@ impl Intersectable for Jumble {
             // remember, normal is trickier
 
             if crate::DEBUG {
-                println!("{}returning {:?}", indent, record);
+                println!("{}returning {:?}", indent, hit);
             }
 
-            return Result::Hit(record);
+            return Shot::Hit;
         }
         if crate::DEBUG { println!("{}Missed Jumble altogether! Air rayyyyy!", indent);}
-        Result::Miss
+        Shot::Miss
     }
 }
 
@@ -124,10 +131,8 @@ pub struct Sphere {
     pub radius: f32,
 }
 
-impl IntersectableDebug for Sphere {}
-
 impl Intersectable for Sphere {
-    fn intersect(&self, ray: &Ray, rng: &mut Range, indent_by: usize) -> Result {
+    fn intersect(&self, ray: &Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot {
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
         if crate::DEBUG {
@@ -138,18 +143,22 @@ impl Intersectable for Sphere {
         let half_b = oc.dot(&ray.dir);
         let c = oc.len_squared() - self.radius*self.radius;
         let discriminant = half_b*half_b - a*c;
-        if discriminant < 0.0 { return Result::Miss; }
+        if discriminant < 0.0 { return Shot::Miss; }
         let disqrt = discriminant.sqrt();
         let t0 = (-half_b - disqrt) / a;
-        let t1 = (-half_b + disqrt) / a; // half decent optimization won't compute this if unnecessary
-        let t = if t0.outside(rng) { t1 } else { t0 };
-        if t.outside(rng) { return Result::Miss; }
-        //if rng.outside(t) { return Result::Miss; }
+        let t1 = (-half_b + disqrt) / a;
+        // Check both:
+        //  - if both < rng.min: Shot::Miss
+        //  - if both > rng.min: take the closer
+        //  - if at least one > rng.min: use the larger
+        //  - check selected is inside range
+        let t = if t0 > rng.min && t1 > rng.min { t0.min(t1) } else { t0.max(t1) };
+        if t.outside(&rng) || t > hit.t { return Shot::Miss; }
+
         let point = ray.at(t);
 
         // set normal to oppose ray direction and indicate whether it's a
-        // hit against front face or back face of geometry (TODO: move
-        // to HitRecord itself when more geometry is added)
+        // hit against front face or back face of geometry
         let normal = (ray.at(t) - self.center).normalize();
         let front_face = if dot(&normal, &ray.dir) < 0.0 {true} else {false};
 
@@ -164,7 +173,11 @@ impl Intersectable for Sphere {
         }
 
         //println!("{}returning a hit",indent);
-        return Result::Hit(HitRecord { t, point, normal: if front_face {normal} else {-normal}, front_face });
+        hit.t = t;
+        hit.point = point;
+        hit.normal = if front_face {normal} else {-normal};
+        hit.front_face = front_face;
+        Shot::Hit
     }
 }
 

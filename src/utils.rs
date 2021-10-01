@@ -7,6 +7,9 @@
 //  [] create chainable matrix ops (M.translate(t).rotate(r,Axis::X).scale(s))
 //  [] remember how to properly transform normals back into world space (M⁻¹)ᵀ*n
 //   - transforming ray into jumble space is actually M⁻¹*v, and M⁻¹*p
+//  [] use core::ops::Range instead of reinventing it
+//   - (https://doc.rust-lang.org/core/ops/struct.Range.html)
+//   - at least make a struct with that and the handy function.
 
 pub struct Color([f32; 4]);
 //instantiate using: `let c = vec![r,g,b,a];`
@@ -225,11 +228,12 @@ impl Ray {
     }
 }
 
-
+// [] just `!core::ops::Range::contains(val)
 pub trait OutsideRange {
     fn outside(self, rng: &Range) -> bool;
 }
 
+// [] just core::ops::Range
 #[derive(Debug)]
 pub struct Range {
     pub min: f32,
@@ -246,7 +250,7 @@ impl OutsideRange for f32 {
 // a half-open range [tmin, tmax)
 impl Range {
     pub fn default() -> Self {
-        Range::new(0.0, f32::INFINITY)
+        Range::new(0.00001, f32::INFINITY)
     }
 
     pub fn new(min: f32, max: f32) -> Self {
