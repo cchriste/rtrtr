@@ -1,15 +1,14 @@
 // mod utils
 // Color, Vec3, Vec4, Axis, Matrix, Range, Ray
 // TODO:
-//  [] trade Range for std version
-//  [] change Vector -> Vec3, ::init to ::new
+//  [x] change Vector -> Vec3, ::init to ::new
+//  [] create generic version of Vec<N> instead of all this cut n' pastin'
 //  [] create str ops for Vec3 so they, and wrappers like Point and Color) are tolerable to print
 //  [] create chainable matrix ops (M.translate(t).rotate(r,Axis::X).scale(s))
-//  [] remember how to properly transform normals back into world space (M⁻¹)ᵀ*n
+//  [] remember how to properly transform normals (vectors) back into world space (M⁻¹)ᵀ*n
 //   - transforming ray into jumble space is actually M⁻¹*v, and M⁻¹*p
 //  [] use core::ops::Range instead of reinventing it
 //   - (https://doc.rust-lang.org/core/ops/struct.Range.html)
-//   - at least make a struct with that and the handy function.
 
 pub struct Color([f32; 4]);
 //instantiate using: `let c = vec![r,g,b,a];`
@@ -23,74 +22,71 @@ pub enum Axis { X, Y, Z }
 
 #[derive(Debug)]
 #[derive(Copy, Clone)]
-pub struct Vector {
+pub struct Vec3 {
     pub v: [f32; 3],
 }
 
 use std::ops::{Mul, Div, Sub, Add, Neg, AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
 
-// TODO: there might be some template way to enable slice indices
-// - https://doc.rust-lang.org/std/ops/trait.IndexMut.html
-// such as: impl Index<T> for Vector { ...
-//  output = ?? (how do I say "range of a vec"?)
-//    ... just call v's index method
-impl Index<usize> for Vector {
+// operator[]
+impl Index<usize> for Vec3 {
     type Output = f32;
     fn index(&self, idx: usize) -> &Self::Output {
         &self.v[idx]
     }
 }
 
-impl IndexMut<usize> for Vector {
+// assignable operator[]
+impl IndexMut<usize> for Vec3 {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
         &mut self.v[idx]
     }
 }
 
-impl Neg for Vector {
-    type Output = Vector;
-    fn neg(self) -> Vector {
-        Vector { v: [-self.v[0],
+impl Neg for Vec3 {
+    type Output = Vec3;
+    fn neg(self) -> Vec3 {
+        Vec3 { v: [-self.v[0],
                      -self.v[1],
                      -self.v[2]] }
     }
 }
 
-impl Add for Vector {
-    type Output = Vector;
-    fn add(self, other: Vector) -> Vector {
-        Vector { v: [self.v[0] + other.v[0],
+impl Add for Vec3 {
+    type Output = Vec3;
+    fn add(self, other: Vec3) -> Vec3 {
+        Vec3 { v: [self.v[0] + other.v[0],
                      self.v[1] + other.v[1],
                      self.v[2] + other.v[2]] }
     }
 }
 
-impl AddAssign for Vector {
-    fn add_assign(&mut self, other: Vector) -> () {
-        *self = Vector { v: [self.v[0] + other.v[0],
+impl AddAssign for Vec3 {
+    fn add_assign(&mut self, other: Vec3) -> () {
+        *self = Vec3 { v: [self.v[0] + other.v[0],
                              self.v[1] + other.v[1],
                              self.v[2] + other.v[2]] }
     }
 }
 
-impl Sub for Vector {
-    type Output = Vector;
-    fn sub(self, other: Vector) -> Vector {
-        Vector { v: [self.v[0] - other.v[0],
+impl Sub for Vec3 {
+    type Output = Vec3;
+    fn sub(self, other: Vec3) -> Vec3 {
+        Vec3 { v: [self.v[0] - other.v[0],
                      self.v[1] - other.v[1],
                      self.v[2] - other.v[2]] }
     }
 }
 
-impl SubAssign for Vector {
-    fn sub_assign(&mut self, other: Vector) -> () {
-        *self = Vector { v: [self.v[0] - other.v[0],
+impl SubAssign for Vec3 {
+    fn sub_assign(&mut self, other: Vec3) -> () {
+        *self = Vec3 { v: [self.v[0] - other.v[0],
                              self.v[1] - other.v[1],
                              self.v[2] - other.v[2]] }
     }
 }
 
-impl Mul<f32> for Vector {
+impl Mul<f32> for Vec3 {
     type Output = Self;
     fn mul(self, k: f32) -> Self {
         Self { v: [self.v[0] * k,
@@ -99,17 +95,17 @@ impl Mul<f32> for Vector {
     }
 }
 
-// yay! we can do k*Vector
-impl Mul<Vector> for f32 {
-    type Output = Vector;
-    fn mul(self, vec: Vector) -> Vector {
-        Vector { v: [vec.v[0] * self,
+// yay! we can do k*Vec3
+impl Mul<Vec3> for f32 {
+    type Output = Vec3;
+    fn mul(self, vec: Vec3) -> Vec3 {
+        Vec3 { v: [vec.v[0] * self,
                      vec.v[1] * self,
                      vec.v[2] * self] }
     }
 }
 
-impl MulAssign<f32> for Vector {
+impl MulAssign<f32> for Vec3 {
     fn mul_assign(&mut self, k: f32) -> () {
         *self = Self { v: [self.v[0] * k,
                            self.v[1] * k,
@@ -117,7 +113,7 @@ impl MulAssign<f32> for Vector {
     }
 }
 
-impl Div<f32> for Vector {
+impl Div<f32> for Vec3 {
     type Output = Self;
     fn div(self, k: f32) -> Self {
         Self { v: [self.v[0] / k,
@@ -126,7 +122,7 @@ impl Div<f32> for Vector {
     }
 }
 
-impl DivAssign<f32> for Vector {
+impl DivAssign<f32> for Vec3 {
     fn div_assign(&mut self, k: f32) -> () {
         *self = Self { v: [self.v[0] / k,
                            self.v[1] / k,
@@ -134,17 +130,41 @@ impl DivAssign<f32> for Vector {
     }
 }
 
-pub fn dot(v1: &Vector, v2: &Vector) -> f32 {
+pub fn dot(v1: Vec3, v2: Vec3) -> f32 {
     v1.dot(v2)
 }
 
-impl Vector {
+// generate more evenly distributed random values
+use rand::{Rng, thread_rng};
+use rand::distributions::Uniform;
+
+impl Vec3 {
     pub fn zero() -> Self {
         Self { v: [0.0, 0.0, 0.0] }
     }
 
-    pub fn init(x: f32, y: f32, z: f32) -> Self {
+    pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self { v: [x, y, z] }
+    }
+
+    // vector with values in range [0,1)
+    pub fn rand() -> Self {
+        let mut rng = rand::thread_rng();
+        let unit = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        Self { v: [rng.sample(unit), rng.sample(unit), rng.sample(unit)] }
+    }
+
+    // return vector of n purportedly well-distributed random Vec3s
+    pub fn rand_arr(n: u32) -> Vec<Self> {
+        let mut rng = thread_rng();
+        let unitx = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        let unity = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        let unitz = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        let mut ret = Vec::<Self>::new();
+        for _ in 0..n {
+            ret.push(Self { v: [rng.sample(unitx), rng.sample(unity), rng.sample(unitz)] });
+        }
+        ret
     }
 
     pub fn x(&self) -> f32 { self.v[0] }
@@ -159,53 +179,53 @@ impl Vector {
         self.len_squared().sqrt()
     }
 
-    pub fn dot(&self, other: &Vector) -> f32 {
+    pub fn dot(&self, other: Vec3) -> f32 {
         self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2]
     }
 
-    pub fn cross(&self, other: &Vector) -> Vector {
+    pub fn cross(&self, other: &Vec3) -> Vec3 {
         //        |  î   ĵ   k̂ |
         // det of | a0  a1  a2 |
         //        | b0  b1  b2 |
         //
         // = (a1b2 - a2b1)î - (a2b0 - a0b2)ĵ + (a0b1 - a1b0)k̂
         //
-        Vector { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
+        Vec3 { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
                      self.v[2]*other.v[0] - self.v[0]*other.v[2],
                      self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
     }
 
-    pub fn unit_vector(&v: &Vector) -> Vector {
+    pub fn unit_vector(&v: &Vec3) -> Vec3 {
         v.normalize()
     }
 
-    pub fn normalize(&self) -> Vector {
+    pub fn normalize(&self) -> Vec3 {
         let magnitude = self.len();
-        Vector { v: [self.v[0] / magnitude,
-                     self.v[1] / magnitude,
-                     self.v[2] / magnitude] }
+        Vec3 { v: [self.v[0] / magnitude,
+                   self.v[1] / magnitude,
+                   self.v[2] / magnitude] }
     }
 }
 
 
 #[derive(Debug)]
 pub struct Ray {
-    pub origin: Vector,
-    pub dir: Vector
+    pub origin: Vec3,
+    pub dir: Vec3
 }
 
 impl Ray {
 
-    pub fn new(origin: Vector, dir: Vector) -> Ray {
+    pub fn new(origin: Vec3, dir: Vec3) -> Ray {
         Ray {
             origin,
-            dir: dir.normalize()  // do we need to normalize this here?
+            dir: dir.normalize()  // do we need to normalize this here? (in particular, FIXME: coordsys in a jumble will need non-normalized ray directions)
         }
     }
 
-    pub fn at(&self, t: f32) -> Vector {
+    pub fn at(&self, t: f32) -> Vec3 {
         let v = self.dir.mul(t);
-        Vector { v: [self.origin.x() + v.x(),
+        Vec3 { v: [self.origin.x() + v.x(),
                      self.origin.y() + v.y(),
                      self.origin.z() + v.z()] }
     }
@@ -222,8 +242,8 @@ impl Ray {
         let o = *csys * o;  // ?: derefernce argument or just pass copy?
         let v = *csys * v;
         Ray {
-            origin: Vector::init(o.x(), o.y(), o.z()),
-            dir: Vector::init(v.x(), v.y(), v.z()),
+            origin: Vec3::new(o.x(), o.y(), o.z()),
+            dir: Vec3::new(v.x(), v.y(), v.z()),
         }
     }
 }
@@ -367,7 +387,7 @@ impl Matrix {
         self.rows[3][3] *= k;
     }
 
-    pub fn translate(&mut self, t: Vector) -> () {
+    pub fn translate(&mut self, t: Vec3) -> () {
         self.rows[0][3] += t.x();
         self.rows[1][3] += t.y();
         self.rows[2][3] += t.z();
@@ -430,24 +450,24 @@ impl Mul for Matrix {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
-        Self { rows: [ Vec4::new([self.rows[0].dot(&self.col(0)), self.rows[0].dot(&self.col(1)), self.rows[0].dot(&self.col(2)), self.rows[0].dot(&self.col(3))]),
-                       Vec4::new([self.rows[1].dot(&self.col(0)), self.rows[1].dot(&self.col(1)), self.rows[1].dot(&self.col(2)), self.rows[1].dot(&self.col(3))]),
-                       Vec4::new([self.rows[2].dot(&self.col(0)), self.rows[2].dot(&self.col(1)), self.rows[2].dot(&self.col(2)), self.rows[2].dot(&self.col(3))]),
-                       Vec4::new([self.rows[3].dot(&self.col(0)), self.rows[3].dot(&self.col(1)), self.rows[3].dot(&self.col(2)), self.rows[3].dot(&self.col(3))]) ]
+        Self { rows: [ Vec4::new([self.rows[0].dot(self.col(0)), self.rows[0].dot(self.col(1)), self.rows[0].dot(self.col(2)), self.rows[0].dot(self.col(3))]),
+                       Vec4::new([self.rows[1].dot(self.col(0)), self.rows[1].dot(self.col(1)), self.rows[1].dot(self.col(2)), self.rows[1].dot(self.col(3))]),
+                       Vec4::new([self.rows[2].dot(self.col(0)), self.rows[2].dot(self.col(1)), self.rows[2].dot(self.col(2)), self.rows[2].dot(self.col(3))]),
+                       Vec4::new([self.rows[3].dot(self.col(0)), self.rows[3].dot(self.col(1)), self.rows[3].dot(self.col(2)), self.rows[3].dot(self.col(3))]) ]
         }
     }
 }
 
 
 // ================================================================================
-// Vec4 (do I really need a Vec3? I can't remember. I think so since w get in
-// the way. For example with computing len.)
+// Vec4
 #[derive(Debug)]
 #[derive(Copy, Clone)]
 pub struct Vec4 {
     pub v: [f32; 4],
 }
 
+// operator[]
 impl Index<usize> for Vec4 {
     type Output = f32;
     fn index(&self, idx: usize) -> &Self::Output {
@@ -455,6 +475,7 @@ impl Index<usize> for Vec4 {
     }
 }
 
+// assignable operator[]
 impl IndexMut<usize> for Vec4 {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
         &mut self.v[idx]
@@ -549,10 +570,10 @@ impl Neg for Vec4 {
 impl Mul<Vec4> for Matrix {
     type Output = Vec4;
     fn mul(self, vec: Vec4) -> Vec4 {
-        Vec4 { v: [self.rows[0].dot(&vec),
-                   self.rows[1].dot(&vec),
-                   self.rows[2].dot(&vec),
-                   self.rows[3].dot(&vec)] }
+        Vec4 { v: [self.rows[0].dot(vec),
+                   self.rows[1].dot(vec),
+                   self.rows[2].dot(vec),
+                   self.rows[3].dot(vec)] }
     }
 }
 
@@ -614,7 +635,7 @@ impl Vec4 {
     //     self.len_squared().sqrt()
     // }
 
-    pub fn dot(&self, other: &Vec4) -> f32 {
+    pub fn dot(&self, other: Vec4) -> f32 {
         self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2] + self.v[3]*other.v[3]
     }
 
@@ -638,6 +659,216 @@ impl Vec4 {
     // pub fn normalize(&self) -> Vec4 {
     //     let magnitude = self.len();
     //     Vec4 { v: [self.v[0] / magnitude,
+    //                self.v[1] / magnitude,
+    //                self.v[2] / magnitude] }
+    // }
+}
+
+// ================================================================================
+// Vec2
+#[derive(Debug)]
+#[derive(Copy, Clone)]
+pub struct Vec2 {
+    pub v: [f32; 2],
+}
+
+// operator[]
+impl Index<usize> for Vec2 {
+    type Output = f32;
+    fn index(&self, idx: usize) -> &Self::Output {
+        &self.v[idx]
+    }
+}
+
+// assignable operator[]
+impl IndexMut<usize> for Vec2 {
+    fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
+        &mut self.v[idx]
+    }
+}
+
+impl Neg for Vec2 {
+    type Output = Vec2;
+    fn neg(self) -> Vec2 {
+        Vec2 { v: [-self.v[0],
+                   -self.v[1]] }
+    }
+}
+
+impl Add for Vec2 {
+    type Output = Vec2;
+
+    fn add(self, other: Vec2) -> Vec2 {
+        Vec2 { v: [self.v[0] + other.v[0],
+                   self.v[1] + other.v[1]] }
+    }
+}
+
+impl AddAssign for Vec2 {
+    fn add_assign(&mut self, other: Vec2) -> () {
+        *self = Vec2 { v: [self.v[0] + other.v[0],
+                           self.v[1] + other.v[1]] }
+    }
+}
+
+impl Sub for Vec2 {
+    type Output = Vec2;
+
+    fn sub(self, other: Vec2) -> Vec2 {
+        Vec2 { v: [self.v[0] - other.v[0],
+                   self.v[1] - other.v[1]] }
+    }
+}
+
+impl SubAssign for Vec2 {
+    fn sub_assign(&mut self, other: Vec2) -> () {
+        *self = Vec2 { v: [self.v[0] - other.v[0],
+                           self.v[1] - other.v[1]] }
+    }
+}
+
+impl Mul<f32> for Vec2 {
+    type Output = Self;
+
+    fn mul(self, k: f32) -> Self {
+        Self { v: [self.v[0] * k,
+                   self.v[1] * k] }
+    }
+}
+
+// yay! we can do k*Vec2
+impl Mul<Vec2> for f32 {
+    type Output = Vec2;
+
+    fn mul(self, vec: Vec2) -> Vec2 {
+        Vec2 { v: [vec.v[0] * self,
+                   vec.v[1] * self] }
+    }
+}
+
+// I don't think we want to be able to do v*M, only M*v
+// impl Mul<Matrix> for Vec2 {
+//     type Output = Vec2;
+//     fn mul(self, vec: Vec2) -> Vec2 {
+//         Vec2 { v: [dot(self.rows[0], vec),
+//                    dot(self.rows[1], vec),
+//                    dot(self.rows[2], vec),
+//                    dot(self.rows[3], vec)] }
+//     }
+// }
+
+// M*v
+// impl Mul<Vec2> for Matrix {
+//     type Output = Vec2;
+//     fn mul(self, vec: Vec2) -> Vec2 {
+//         Vec2 { v: [self.rows[0].dot(&vec),
+//                    self.rows[1].dot(&vec),
+//                    self.rows[2].dot(&vec),
+//                    self.rows[3].dot(&vec)] }
+//     }
+// }
+
+// impl MulAssign<f32> for Vec2 {
+//     fn mul_assign(&mut self, k: f32) -> () {
+//         *self = Self { v: [self.v[0] * k,
+//                            self.v[1] * k,
+//                            self.v[2] * k,
+//                            self.v[3] * k] }
+//     }
+// }
+
+// impl Div<f32> for Vec2 {
+//     type Output = Self;
+
+//     fn div(self, k: f32) -> Self {
+//         Self { v: [self.v[0] / k,
+//                    self.v[1] / k,
+//                    self.v[2] / k,
+//                    self.v[3] / k] }
+//     }
+// }
+
+// impl DivAssign<f32> for Vec2 {
+//     fn div_assign(&mut self, k: f32) -> () {
+//         *self = Self { v: [self.v[0] / k,
+//                            self.v[1] / k,
+//                            self.v[2] / k,
+//                            self.v[3] / k] }
+//     }
+// }
+
+// pub fn dot(v1: &Vec2, v2: &Vec2) -> f32 {
+//     v1.dot(v2)
+// }
+
+impl Vec2 {
+    pub fn zero() -> Self {
+        Self { v: [0.0, 0.0] }
+    }
+
+// just implement stuff like this as it's needed (which it probably will be for sampling)
+    // pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
+    //     Self { v: [x, y, z, w] }
+    // }
+    pub fn new(v: [f32; 2]) -> Self {
+        Self { v }
+    }
+
+    // vector with values in range [0,1)
+    pub fn rand() -> Self {
+        let mut rng = rand::thread_rng();
+        let unit = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        Self { v: [rng.sample(unit), rng.sample(unit)] }
+    }
+
+    // return vector of n purportedly well-distributed random Vecs
+    pub fn rand_arr(n: usize) -> Vec<Self> {
+        let mut rng = thread_rng();
+        let unitx = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        let unity = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
+        let mut ret = Vec::<Self>::new();
+        for _ in 0..n {
+            ret.push(Self { v: [rng.sample(unitx), rng.sample(unity)] });
+        }
+        ret
+    }
+
+    pub fn x(&self) -> f32 { self.v[0] }
+    pub fn y(&self) -> f32 { self.v[1] }
+
+    // pub fn len_squared(&self) -> f32 {
+    //     self.dot(self)
+    // }
+
+
+    // pub fn len(&self) -> f32 {
+    //     self.len_squared().sqrt()
+    // }
+
+    // pub fn dot(&self, other: &Vec2) -> f32 {
+    //     self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2] + self.v[3]*other.v[3]
+    // }
+
+    // pub fn cross(&self, other: &Vec2) -> Vec2 {
+    //     //        |  î   ĵ   k̂ |
+    //     // det of | a0  a1  a2 |
+    //     //        | b0  b1  b2 |
+    //     //
+    //     // = (a1b2 - a2b1)î - (a2b0 - a0b2)ĵ + (a0b1 - a1b0)k̂
+    //     //
+    //     Vec2 { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
+    //                self.v[2]*other.v[0] - self.v[0]*other.v[2],
+    //                self.v[0]*other.v[1] - self.v[1]*other.v[0],
+    //                1.0] }
+    // }
+
+    // pub fn unit_vector(&v: &Vec2) -> Vec2 {
+    //     v.normalize()
+    // }
+
+    // pub fn normalize(&self) -> Vec2 {
+    //     let magnitude = self.len();
+    //     Vec2 { v: [self.v[0] / magnitude,
     //                self.v[1] / magnitude,
     //                self.v[2] / magnitude] }
     // }

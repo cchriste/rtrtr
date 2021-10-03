@@ -9,17 +9,19 @@
 //#![allow(non_snake_case)]
 
 const DEBUG: bool = false;
-const LITE: bool = true;
+const LITE: bool = false;
+//const REF_TYPE: ReflectionType = ReflectionType::PointOnHemisphere;
+//const REF_TYPE: ReflectionType = ReflectionType::NormalPlusPointInSphere;
+const REF_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere;
 
 use ferris_says::say;
 use png;
 use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
 use std::convert::TryInto;
-use rand::Rng;
 
 mod utils;
-use crate::utils::{Ray, Vector, Color, Range};
+use crate::utils::{Ray, Vec3, Color, Range};
 
 mod objects;
 use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
@@ -27,26 +29,56 @@ use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
 mod camera; // FIXME: shouldn't this [be able to] go in camera.rs?
 use crate::camera::Camera;
 
+enum ReflectionType {
+    NormalPlusPointInSphere,
+    NormalPlusPointOnSphere,
+    PointOnHemisphere,
+}
+
+fn random_point_in_unit_sphere() -> Vec3 {
+    loop {
+        let v = Vec3::rand();
+        if v.len_squared() < 1.0 {
+            return v - Vec3::new(0.5,0.5,0.5);
+        }
+    }
+}
+
+fn random_unit_vector() -> Vec3 {
+    random_point_in_unit_sphere().normalize()
+}
+
+fn random_reflection(ref_type: ReflectionType, pt: Vec3, normal: Vec3) -> Vec3 {
+    match ref_type {
+        ReflectionType::NormalPlusPointInSphere => return pt + normal + random_point_in_unit_sphere(),
+        ReflectionType::NormalPlusPointOnSphere => return pt + normal + random_unit_vector(),
+        ReflectionType::PointOnHemisphere => {
+            let vec = random_unit_vector();
+            return if vec.dot(normal) > 0.0 { pt + vec } else { pt - vec };
+        },
+    }
+}
+
 // color of ray(origin, dir)
-fn ray_color(ray: &Ray, scene: &Jumble) -> Vector { // TODO: return color
-    let mut range = Range::default();
-    // println!("range: {:?}", range);
+fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { // TODO: return color
+    if depth <= 0 { return Vec3::zero(); }
+
     let mut hit = HitRecord::new();
-    match scene.intersect(ray, &mut range, &mut hit, /*depth,*/ 0/*indent*/) {
+    match scene.intersect(ray, &Range::default(), &mut hit, indent_by) {
         Shot::Hit => {
             if crate::DEBUG {
                 println!("HIT! time: {}, point: {:?}, normal: {:?}",
                          hit.t, hit.point, hit.normal);
             }
-            return 0.5*Vector::init(hit.normal.x()+1.0,
-                                    hit.normal.y()+1.0,
-                                    hit.normal.z()+1.0);
+            let target = random_reflection(REF_TYPE, hit.point, hit.normal);
+            return 0.5*ray_color(&Ray::new(hit.point, target - hit.point),
+                                 scene, depth-1, indent_by+2);
         },
         Shot::Miss => {
             let unit_dir = ray.dir.normalize();
             let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
-            let white = Vector::init(1.0, 1.0, 1.0);
-            let bluey = Vector::init(0.5, 0.7, 1.0);
+            let white = Vec3::new(1.0, 1.0, 1.0);
+            let bluey = Vec3::new(0.5, 0.7, 1.0);
             return white*(1.0 - t) + bluey*t;
         }
     }
@@ -57,7 +89,8 @@ fn main() {
     const ASPECT: f32 = 16.0/9.0;  // width/height
     const IMAGE_WIDTH: u32 = 200;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
-    const SAMPLES_PER_PIXEL: u32 = if LITE {1} else {100};
+    const SAMPLES_PER_PIXEL: usize = if LITE {1} else {100};
+    const MAX_DEPTH: i32 = if LITE {2} else {25};
 
     // camera
     let focal_length = 1.0;
@@ -104,11 +137,12 @@ fn main() {
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
         let nsamples = if !DEBUG {SAMPLES_PER_PIXEL} else {1};
-        let mut color = Vector::init(0.0,0.0,0.0);
-        for s in 0..nsamples {
-            let ray = camera.gen_ray(pct_x, pct_y);
+        let mut color = Vec3::new(0.0,0.0,0.0);
+        let rays = camera.gen_rays(pct_x, pct_y, nsamples);
+        for ray in rays {
+            //let ray = camera.gen_ray(pct_x, pct_y);
             if DEBUG { println!("ray: {:?}",ray); }
-            color += ray_color(&ray, &scene);
+            color += ray_color(&ray, &scene, MAX_DEPTH, 0/*indent*/);
         }
         color /= nsamples as f32;
 
@@ -170,11 +204,12 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
     );
     encoder.set_source_chromaticities(source_chromaticities);
 
-    // convert floats to chars
+    // convert floats to chars and apply gamma correction
+    // γ (gamma) = 2.2, color saved = c^(1/γ), estimate γ as 2.0, so color = c^(1/2) = sqrt(c)
     let mut data: Vec<u8> = Vec::with_capacity(img.len());
     unsafe { data.set_len(data.capacity()); }
     for i in 0..img.len() {
-        data[i] = ((256f32-f32::EPSILON) * img[i]) as u8;
+        data[i] = ((256f32-f32::EPSILON) * f32::sqrt(img[i])) as u8; 
     }
 
     let mut writer = encoder.write_header().unwrap();
@@ -183,9 +218,9 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
 
 fn build_scene() -> Jumble {
     // instances of geometry
-    let s1 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
-    let s2 = Sphere::new(Vector::init(0.0,-100.5,-1.0), 100.0);
-    let s3 = Sphere::new(Vector::init(0.0,0.0,-1.0), 0.5);
+    let s1 = Sphere::new(Vec3::new(0.0,0.0,-1.0), 0.5);
+    let s2 = Sphere::new(Vec3::new(0.0,-100.5,-1.0), 100.0);
+    let s3 = Sphere::new(Vec3::new(0.0,0.0,-1.0), 0.5);
 
     // the main stage
     let mut scene = Jumble::new();
@@ -193,8 +228,8 @@ fn build_scene() -> Jumble {
     // test fov is correctly computed
     let mut fov_test_scene = Jumble::new();
     let radius = (std::f32::consts::PI / 4.0).cos();
-    let sl = Sphere::new(Vector::init(-radius,0.0,-1.0), radius);
-    let sr = Sphere::new(Vector::init(radius,0.0,-1.0), radius);
+    let sl = Sphere::new(Vec3::new(-radius,0.0,-1.0), radius);
+    let sr = Sphere::new(Vec3::new(radius,0.0,-1.0), radius);
     fov_test_scene.add(Box::new(sl));
     fov_test_scene.add(Box::new(sr));
     //scene.add(Box::new(fov_test_scene));
@@ -205,7 +240,7 @@ fn build_scene() -> Jumble {
     scene.add(Box::new(sub_scene));
 
     let mut squishy_scene = Jumble::new();
-    squishy_scene.csys.translate(Vector { v: [-0.25, 0.25, 0.0] });
+    squishy_scene.csys.translate(Vec3 { v: [-0.25, 0.25, 0.0] });
     squishy_scene.add(Box::new(s3)); // TODO: add same geometry to diff scenes (one thing at a time)
     //scene.add(Box::new(squishy_scene));
 

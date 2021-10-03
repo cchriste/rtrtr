@@ -9,20 +9,20 @@ use std::fmt::Debug;
 // TODO: try creating mod.Intersectable so this can be Intersectable: mod.Intersectable + Debug
 //pub trait Intersectable: Intersectable + Debug {}
 
-use crate::utils::{Ray, Vector, dot, print_type_of, Range, OutsideRange, Matrix};  // Vector-y!
+use crate::utils::{Ray, Vec3, dot, print_type_of, Range, OutsideRange, Matrix};  // Vec3-y!
 
 // hit record
 #[derive(Debug)]
 pub struct HitRecord {
-    pub point: Vector,
-    pub normal: Vector,
+    pub point: Vec3,
+    pub normal: Vec3,
     pub t: f32,
     pub front_face: bool,
 }
 
 impl HitRecord {
     pub fn new() -> Self {
-        HitRecord { t: f32::INFINITY, point: Vector::zero(), normal: Vector::zero(), front_face: true }
+        HitRecord { t: f32::INFINITY, point: Vec3::zero(), normal: Vec3::zero(), front_face: true }
     }
 }
 
@@ -127,7 +127,7 @@ impl Intersectable for Jumble {
 
 #[derive(Debug)]
 pub struct Sphere {
-    pub center: Vector,
+    pub center: Vec3,
     pub radius: f32,
 }
 
@@ -140,7 +140,7 @@ impl Intersectable for Sphere {
         }
         let oc = ray.origin - self.center;
         let a = ray.dir.len_squared();
-        let half_b = oc.dot(&ray.dir);
+        let half_b = oc.dot(ray.dir);
         let c = oc.len_squared() - self.radius*self.radius;
         let discriminant = half_b*half_b - a*c;
         if discriminant < 0.0 { return Shot::Miss; }
@@ -159,8 +159,8 @@ impl Intersectable for Sphere {
 
         // set normal to oppose ray direction and indicate whether it's a
         // hit against front face or back face of geometry
-        let normal = (ray.at(t) - self.center).normalize();
-        let front_face = if dot(&normal, &ray.dir) < 0.0 {true} else {false};
+        let normal = (ray.at(t) - self.center).normalize(); // TODO: wait to do this for lighting?
+        let front_face = if dot(normal, ray.dir) < 0.0 {true} else {false};
 
         if crate::DEBUG {
             // println!("oc: {:?}",oc);
@@ -182,7 +182,7 @@ impl Intersectable for Sphere {
 }
 
 impl Sphere {
-    pub fn new(center: Vector, radius: f32) -> Sphere {
+    pub fn new(center: Vec3, radius: f32) -> Sphere {
         Sphere {
             center,
             radius
