@@ -8,11 +8,30 @@
 #![allow(unused_imports)]
 //#![allow(non_snake_case)]
 
+// <config> /////////////////////////////
 const DEBUG: bool = false;
 const LITE: bool = false;
-//const REF_TYPE: ReflectionType = ReflectionType::PointOnHemisphere;
-//const REF_TYPE: ReflectionType = ReflectionType::NormalPlusPointInSphere;
-const REF_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere;
+const BOOK: bool = false; // try to match Shirley's RTiaW configs
+
+// Lambertian reflection equation
+const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
+//const REFL_TYPE: ReflectionType = ReflectionType::PointOnHemisphere;  // add this to the UI
+
+// screen
+const ASPECT: f32 = 16.0/9.0;  // width/height
+const IMAGE_WIDTH: u32 = if BOOK { 400 } else { 200 };
+const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
+
+// render
+const SAMPLES_PER_PIXEL: u32 = if LITE {1} else if BOOK {100} else { 26 };
+const MAX_DEPTH: i32 = if LITE {2} else if BOOK { 100 } else { 25 };
+
+// camera
+const FOCAL_LENGTH: f32 = 1.0;
+const FOV: f32 = 90.0;
+const SAMPLE_TYPE: camera::SampleType = if BOOK { SampleType::PixelRatio } else if LITE { SampleType::PixelRatio } else { SampleType::Blurry };
+
+///////////////////////////// </config>
 
 use ferris_says::say;
 use png;
@@ -21,43 +40,13 @@ use std::convert::TryFrom;
 use std::convert::TryInto;
 
 mod utils;
-use crate::utils::{Ray, Vec3, Color, Range};
+use crate::utils::{Ray, Vec3, Vec2, Color, Range};
 
 mod objects;
 use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
 
 mod camera; // FIXME: shouldn't this [be able to] go in camera.rs?
-use crate::camera::Camera;
-
-enum ReflectionType {
-    NormalPlusPointInSphere,
-    NormalPlusPointOnSphere,
-    PointOnHemisphere,
-}
-
-fn random_point_in_unit_sphere() -> Vec3 {
-    loop {
-        let v = Vec3::rand();
-        if v.len_squared() < 1.0 {
-            return v - Vec3::new(0.5,0.5,0.5);
-        }
-    }
-}
-
-fn random_unit_vector() -> Vec3 {
-    random_point_in_unit_sphere().normalize()
-}
-
-fn random_reflection(ref_type: ReflectionType, pt: Vec3, normal: Vec3) -> Vec3 {
-    match ref_type {
-        ReflectionType::NormalPlusPointInSphere => return pt + normal + random_point_in_unit_sphere(),
-        ReflectionType::NormalPlusPointOnSphere => return pt + normal + random_unit_vector(),
-        ReflectionType::PointOnHemisphere => {
-            let vec = random_unit_vector();
-            return if vec.dot(normal) > 0.0 { pt + vec } else { pt - vec };
-        },
-    }
-}
+use crate::camera::*;
 
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { // TODO: return color
@@ -70,7 +59,7 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { 
                 println!("HIT! time: {}, point: {:?}, normal: {:?}",
                          hit.t, hit.point, hit.normal);
             }
-            let target = random_reflection(REF_TYPE, hit.point, hit.normal);
+            let target = random_reflection(REFL_TYPE, hit.point, hit.normal);
             return 0.5*ray_color(&Ray::new(hit.point, target - hit.point),
                                  scene, depth-1, indent_by+2);
         },
@@ -84,35 +73,7 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { 
     }
 }
 
-fn main() {
-    // screen
-    const ASPECT: f32 = 16.0/9.0;  // width/height
-    const IMAGE_WIDTH: u32 = 200;
-    const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
-    const SAMPLES_PER_PIXEL: usize = if LITE {1} else {100};
-    const MAX_DEPTH: i32 = if LITE {2} else {25};
-
-    // camera
-    let focal_length = 1.0;
-    let fov: f32 = 90.0;
-    let viewport_height = focal_length*2.0 * (fov.to_radians()/2.0).tan(); // I don't like manually computing this here since it's already done in the camera; maybe move blurriness to the camera, shake it up and jitter some samples
-
-    // this is currently pixel dims, but it can get fancier
-    let blurriness = [viewport_height*ASPECT/IMAGE_WIDTH as f32,
-                      viewport_height/IMAGE_HEIGHT as f32];
-
-    let camera = Camera::init(ASPECT, focal_length, fov, blurriness);
-
-    // allocate image (just set length, don't initialize)
-    let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4 * IMAGE_WIDTH * IMAGE_HEIGHT).unwrap());
-    unsafe { img.set_len(img.capacity()); }
-
-    // keep track of min/max color values (TODO: make this a Color)
-    let mut color_range: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
-
-    // build scene
-    let scene = build_scene();
-
+fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     // indices of pixels to trace
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
@@ -131,8 +92,26 @@ fn main() {
             pixels.push([i, j]);
         }
     }
+    pixels
+}
 
-    for px in pixels {
+static mut AVG_RANDOM_VEC: Vec3 = Vec3::zero();
+static mut NUM_RANDOMS: u32 = 0;
+static mut COLOR_RANGE: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
+
+fn main() {
+
+    // allocate dst image (just set length, don't initialize)
+    let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4*IMAGE_WIDTH*IMAGE_HEIGHT).unwrap());
+    unsafe { img.set_len(img.capacity()); }
+
+    let camera = Camera::init(ASPECT, FOCAL_LENGTH, FOV, IMAGE_HEIGHT, SAMPLE_TYPE);
+
+    // build scene
+    let scene = build_scene();
+
+    let pixels = get_pixels_to_trace();
+    for px in &pixels {
         let pct_x = px[0] as f32 / (IMAGE_WIDTH-1) as f32;
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
@@ -151,9 +130,11 @@ fn main() {
         }
 
         // update color minmax
-        for c in 0..3 {
-            color_range.0[c] = color_range.0[c].min(color.v[c]);
-            color_range.1[c] = color_range.1[c].max(color.v[c]);
+        unsafe {
+            for c in 0..3 {
+                COLOR_RANGE.0[c] = COLOR_RANGE.0[c].min(color.v[c]);
+                COLOR_RANGE.1[c] = COLOR_RANGE.1[c].max(color.v[c]);
+            }
         }
 
         // 4 * (current height * image width + current width)
@@ -164,7 +145,11 @@ fn main() {
         img[idx + 3] = 1.0;
     }
 
-    println!("color_range: {:?}", color_range);
+    //let num_samples: f32 = pixels.len() as f32 * SAMPLES_PER_PIXEL as f32;
+    unsafe {
+        println!("avg random vec ({} vecs): {:?}", NUM_RANDOMS, AVG_RANDOM_VEC / NUM_RANDOMS as f32);
+        println!("color_range: {:?}", COLOR_RANGE);
+    }
 
     write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH, IMAGE_HEIGHT);
     conclude("Goodbye fellow Rustaceans!");

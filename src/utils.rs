@@ -9,6 +9,7 @@
 //   - transforming ray into jumble space is actually M⁻¹*v, and M⁻¹*p
 //  [] use core::ops::Range instead of reinventing it
 //   - (https://doc.rust-lang.org/core/ops/struct.Range.html)
+//  [] add const to initializer funcs as in Vec3::zero()
 
 pub struct Color([f32; 4]);
 //instantiate using: `let c = vec![r,g,b,a];`
@@ -136,10 +137,10 @@ pub fn dot(v1: Vec3, v2: Vec3) -> f32 {
 
 // generate more evenly distributed random values
 use rand::{Rng, thread_rng};
-use rand::distributions::Uniform;
+use rand::distributions::{Distribution, Uniform};
 
 impl Vec3 {
-    pub fn zero() -> Self {
+    pub const fn zero() -> Self {
         Self { v: [0.0, 0.0, 0.0] }
     }
 
@@ -150,8 +151,7 @@ impl Vec3 {
     // vector with values in range [0,1)
     pub fn rand() -> Self {
         let mut rng = rand::thread_rng();
-        let unit = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
-        Self { v: [rng.sample(unit), rng.sample(unit), rng.sample(unit)] }
+        Self { v: [rng.gen(), rng.gen(), rng.gen()] }
     }
 
     // return vector of n purportedly well-distributed random Vec3s
@@ -162,7 +162,8 @@ impl Vec3 {
         let unitz = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
         let mut ret = Vec::<Self>::new();
         for _ in 0..n {
-            ret.push(Self { v: [rng.sample(unitx), rng.sample(unity), rng.sample(unitz)] });
+            //ret.push(Self { v: [rng.sample(unitx), rng.sample(unity), rng.sample(unitz)] });
+            ret.push(Self { v: [unitx.sample(&mut rng), unity.sample(&mut rng), unitz.sample(&mut rng)] });
         }
         ret
     }
