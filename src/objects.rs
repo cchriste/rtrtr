@@ -45,7 +45,7 @@ pub trait Intersectable {
 pub struct Jumble {
     arr: Vec<Box<dyn Intersectable>>,
     pub csys: Matrix,
-    //bbox: BoundingBox, //TODO
+    //bbox: AABoundingBox, //TODO
 }
 
 impl Jumble {
@@ -68,6 +68,9 @@ impl Intersectable for Jumble {
         // ugh: this is two big lines just to indent by a few spaces; TODO: macro me?
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
+        if crate::DEBUG {
+            println!("{}Jumble::intersect, ray: {:?}", indent, ray);
+        }
 
         // transform ray into this Jumble's coordinate system
         // TODO: ...and use it 
@@ -77,16 +80,13 @@ impl Intersectable for Jumble {
         }
 
         let mut hit_something = false;
-        if crate::DEBUG {
-            println!("{}Jumble::intersect, ray: {:?}", indent, ray);
-        }
         for obj in self.arr.iter() {  // NOTE: we'll leave parallelization for another day
             if crate::DEBUG {
                 //print_type_of(obj); // prints interfaces obj implements (i.e., not useful)
                 //println!("obj: {:?}", obj); // can just be too much (e.g., array of objects)
                 println!("{}rng: {:?}", indent, rng);
             }
-            match obj.intersect(&ray, rng, hit, indent_by+2) {
+            match obj.intersect(&new_ray, rng, hit, indent_by+2) {
                 Shot::Hit => { // NOTE: a long-winded way to say `hit_something |= intersect()
                     hit_something = true;
                     if crate::DEBUG {

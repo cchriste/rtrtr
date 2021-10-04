@@ -144,8 +144,8 @@ impl Vec3 {
         Self { v: [0.0, 0.0, 0.0] }
     }
 
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { v: [x, y, z] }
+    pub fn new(v: [f32; 3]) -> Self {
+        Self { v }
     }
 
     // vector with values in range [0,1)
@@ -243,8 +243,8 @@ impl Ray {
         let o = *csys * o;  // ?: derefernce argument or just pass copy?
         let v = *csys * v;
         Ray {
-            origin: Vec3::new(o.x(), o.y(), o.z()),
-            dir: Vec3::new(v.x(), v.y(), v.z()),
+            origin: Vec3::new([o.x(), o.y(), o.z()]),
+            dir: Vec3::new([v.x(), v.y(), v.z()]),
         }
     }
 }
@@ -380,18 +380,34 @@ impl Matrix {
         return self.rows[i];
     }
 
-    // TODO: return modifiable version of self (&mut Matrix, or &Matrix?)
-    pub fn scale(&mut self, k: f32) -> () {
+    pub fn scale(&mut self, k: f32) -> &mut Self {
         self.rows[0][0] *= k;
         self.rows[1][1] *= k;
         self.rows[2][2] *= k;
         self.rows[3][3] *= k;
+        self
     }
 
-    pub fn translate(&mut self, t: Vec3) -> () {
+    pub fn scale_vec3(&mut self, v: Vec3) -> &mut Self {
+        self.rows[0][0] *= v[0];
+        self.rows[1][1] *= v[1];
+        self.rows[2][2] *= v[2];
+        self
+    }
+
+    pub fn scale_vec4(&mut self, v: Vec4) -> &mut Self {
+        self.rows[0][0] *= v[0];
+        self.rows[1][1] *= v[1];
+        self.rows[2][2] *= v[2];
+        self.rows[3][3] *= v[3];
+        self
+    }
+
+    pub fn translate(&mut self, t: Vec3) -> &mut Self {
         self.rows[0][3] += t.x();
         self.rows[1][3] += t.y();
         self.rows[2][3] += t.z();
+        self
     }
 
     pub fn rotate(&mut self, rad: f32, axis: Axis) -> () {

@@ -11,7 +11,7 @@
 // <config> /////////////////////////////
 const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = false; // try to match Shirley's RTiaW configs
+const BOOK: bool = true; // try to match Shirley's RTiaW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
@@ -66,8 +66,8 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { 
         Shot::Miss => {
             let unit_dir = ray.dir.normalize();
             let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
-            let white = Vec3::new(1.0, 1.0, 1.0);
-            let bluey = Vec3::new(0.5, 0.7, 1.0);
+            let white = Vec3::new([1.0, 1.0, 1.0]);
+            let bluey = Vec3::new([0.5, 0.7, 1.0]);
             return white*(1.0 - t) + bluey*t;
         }
     }
@@ -86,7 +86,7 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let end_col = IMAGE_WIDTH;
     let step_x: usize = if DEBUG { (IMAGE_WIDTH/4).try_into().unwrap() } else { 1 };
 
-    for j in (start_row..end_row).step_by(step_y) { 
+    for j in (start_row..end_row).step_by(step_y) {
         for i in (start_col..end_col).step_by(step_x) {
             if DEBUG { println!("i,j: {},{}", i,j); }
             pixels.push([i, j]);
@@ -116,7 +116,7 @@ fn main() {
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
         let nsamples = if !DEBUG {SAMPLES_PER_PIXEL} else {1};
-        let mut color = Vec3::new(0.0,0.0,0.0);
+        let mut color = Vec3::new([0.0,0.0,0.0]);
         let rays = camera.gen_rays(pct_x, pct_y, nsamples);
         for ray in rays {
             //let ray = camera.gen_ray(pct_x, pct_y);
@@ -203,9 +203,9 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
 
 fn build_scene() -> Jumble {
     // instances of geometry
-    let s1 = Sphere::new(Vec3::new(0.0,0.0,-1.0), 0.5);
-    let s2 = Sphere::new(Vec3::new(0.0,-100.5,-1.0), 100.0);
-    let s3 = Sphere::new(Vec3::new(0.0,0.0,-1.0), 0.5);
+    let s1 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
+    let s2 = Box::new(Sphere::new(Vec3::new([0.0,-100.5,-1.0]), 100.0));
+    let s3 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
 
     // the main stage
     let mut scene = Jumble::new();
@@ -213,21 +213,29 @@ fn build_scene() -> Jumble {
     // test fov is correctly computed
     let mut fov_test_scene = Jumble::new();
     let radius = (std::f32::consts::PI / 4.0).cos();
-    let sl = Sphere::new(Vec3::new(-radius,0.0,-1.0), radius);
-    let sr = Sphere::new(Vec3::new(radius,0.0,-1.0), radius);
+    let sl = Sphere::new(Vec3::new([-radius,0.0,-1.0]), radius);
+    let sr = Sphere::new(Vec3::new([radius,0.0,-1.0]), radius);
     fov_test_scene.add(Box::new(sl));
     fov_test_scene.add(Box::new(sr));
     //scene.add(Box::new(fov_test_scene));
 
     let mut sub_scene = Jumble::new();
     sub_scene.add(Box::new(s1));
-    sub_scene.add(Box::new(s2));
+    sub_scene.add(s2);
     scene.add(Box::new(sub_scene));
 
     let mut squishy_scene = Jumble::new();
-    squishy_scene.csys.translate(Vec3 { v: [-0.25, 0.25, 0.0] });
-    squishy_scene.add(Box::new(s3)); // TODO: add same geometry to diff scenes (one thing at a time)
-    //scene.add(Box::new(squishy_scene));
+
+    // TODO: try the two, then the one, ensure they're the same
+    //squishy_scene.csys.scale_vec3(Vec3::new([0.5, 0.5, 1.0]));
+    squishy_scene.csys.scale_vec3(Vec3::new([2.0, 2.0, 1.0]));  // FIXME: 2.0 does 0.5, oops! 
+    squishy_scene.csys.translate(Vec3::new([0.0,-0.5,0.0]));
+    //squishy_scene.csys.rotate(er... 
+    //squishy_scene.csys.scale_vec3(Vec3::new([0.5, 0.5, 1.0])).translate(Vec3::new([0.5,0.5,-1.0]));
+
+    squishy_scene.add(Box::new(s3));
+    //squishy_scene.add(s2); # TODO: use geometry en mas espacios
+    scene.add(Box::new(squishy_scene));
 
     scene
 }

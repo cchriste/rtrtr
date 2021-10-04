@@ -36,8 +36,8 @@ impl Camera {
         let viewport_height = focal_length*2.0 * (vfov.to_radians()/2.0).tan();
         let viewport_width = aspect_ratio * viewport_height;
         let origin = Vec3::zero(); // prolly want this as a param, as well as look, then right and up get calculated here (even for orthogonal)
-        let right = Vec3::new(viewport_width, 0.0, 0.0);
-        let up = Vec3::new(0.0, viewport_height, 0.0);
+        let right = Vec3::new([viewport_width, 0.0, 0.0]);
+        let up = Vec3::new([0.0, viewport_height, 0.0]);
         let z = right.cross(&up).normalize();
         let look = z * -1.0;
         let botleft = origin - right/2.0 - up/2.0 + look*focal_length;
@@ -92,7 +92,7 @@ pub fn random_point_in_unit_sphere() -> Vec3 {
             AVG_RANDOM_VEC += v;
         }
         if v.len_squared() < 1.0 {
-            return v - Vec3::new(0.5,0.5,0.5);
+            return v - Vec3::new([0.5,0.5,0.5]);
         }
     }
 }
