@@ -15,7 +15,7 @@
 // <config> /////////////////////////////
 const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = false; // try to match Shirley's RTiaW configs
+const BOOK: bool = true; // try to match Shirley's RTiaW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
@@ -27,7 +27,7 @@ const IMAGE_WIDTH: u32 = if BOOK { 400 } else { 200 };
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // render
-const SAMPLES_PER_PIXEL: u32 = if LITE {1} else if BOOK {100} else { 26 };
+const SAMPLES_PER_PIXEL: u32 = if DEBUG {1} else if LITE {5} else if BOOK {100} else { 26 };
 const MAX_DEPTH: i32 = if DEBUG {2} else if LITE {5} else if BOOK { 100 } else { 25 };
 
 // camera
@@ -36,6 +36,11 @@ const FOV: f32 = 90.0;
 const SAMPLE_TYPE: camera::SampleType = SampleType::PixelRatio;
 //const SAMPLE_TYPE: camera::SampleType = SampleType::Blurry;  // add this to the UI
 
+// consts
+const PI_4: f32 = PI / 4.0;
+const PI_3: f32 = PI / 3.0;
+const PI_2: f32 = PI / 2.0;
+
 ///////////////////////////// </config>
 
 use ferris_says::say;
@@ -43,9 +48,10 @@ use png;
 use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
 use std::convert::TryInto;
+use std::f32::consts::PI;
 
 mod utils;
-use crate::utils::{Ray, Vec3, Vec2, Color, Range};
+use crate::utils::*;
 
 mod objects;
 use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
@@ -86,13 +92,14 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {IMAGE_HEIGHT/3-10} else {0};
+    let start_row = if DEBUG {IMAGE_HEIGHT/4-15} else {0};
     let end_row = IMAGE_HEIGHT;
-    let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
+    //let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
+    let step_y: usize = if DEBUG { (IMAGE_HEIGHT/4).try_into().unwrap() } else { 1 };
 
-    let start_col = if DEBUG {IMAGE_WIDTH/4} else {0};
+    let start_col = if DEBUG {IMAGE_WIDTH/2} else {0};
     let end_col = IMAGE_WIDTH;
-    let step_x: usize = if DEBUG { (IMAGE_WIDTH/4).try_into().unwrap() } else { 1 };
+    let step_x: usize = if DEBUG { (IMAGE_WIDTH).try_into().unwrap() } else { 1 };
 
     for j in (start_row..end_row).step_by(step_y) {
         for i in (start_col..end_col).step_by(step_x) {
@@ -221,6 +228,8 @@ fn build_scene() -> Jumble {
     let s1 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
     let s2 = Box::new(Sphere::new(Vec3::new([0.0,-100.5,-1.0]), 100.0));
     let s3 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
+    let s4 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
+    let s5 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
 
     // the main stage
     let mut scene = Jumble::new();
@@ -244,17 +253,58 @@ fn build_scene() -> Jumble {
 
     let mut squishy_scene = Jumble::new();
     squishy_scene.name = "squishy".to_string();
-    // TODO: try the two, then the one, ensure they're the same
-    //squishy_scene.csys.scale_vec3(Vec3::new([0.5, 0.5, 1.0]));
     let mut csys = squishy_scene.csys();
-    csys.scale_vec3(Vec3::new([2.0, 2.0, 1.0]));  // FIXME: 2.0 does 0.5, oops! 
+    let scale = Matrix::scale(Vec3::new([1.5, 0.75, 1.0]));
+    csys *= scale;
     csys.translate(Vec3::new([0.0,-0.5,0.0]));
-    //squishy_scene.csys.rotate(er... 
-    //squishy_scene.csys.scale_vec3(Vec3::new([0.5, 0.5, 1.0])).translate(Vec3::new([0.5,0.5,-1.0]));
     squishy_scene.set_csys(csys);
     squishy_scene.add(Box::new(s3));
-    //squishy_scene.add(s2); # TODO: use geometry en mas espacios
-    //scene.add(Box::new(squishy_scene));
+    //squishy_scene.add(Box::new(s1));// FIXME: usa los objectos en mas espacios
+    //squishy_scene.add(s2); // FIXME: usa los objectos en mas espacios
+    scene.add(Box::new(squishy_scene));
+
+
+    let mut sq2 = Jumble::new();
+    sq2.name = "sq2".to_string();
+    let mut csys = sq2.csys();
+
+    let rot = Matrix::rotation(-3.0*PI_4, Axis::Z);
+    //let rot = Matrix::rotation(-PI_4, Axis::Y);
+    //let rot = Matrix::rotation(-PI_4, Axis::X);
+    println!("rot:\n {}", rot);
+    csys *= rot;
+
+    let scale = Matrix::scale(Vec3::new([0.5, 1.25, 1.0]));
+    println!("scale:\n {}", scale);
+    csys *= scale;
+
+    csys.translate(Vec3::new([-1.25, 0.25, 0.0]));
+    println!("csys:\n {}", csys);
+    sq2.set_csys(csys);
+    sq2.add(Box::new(s4));
+    scene.add(Box::new(sq2));
+
+
+    let mut sq3 = Jumble::new();
+    sq3.name = "sq3".to_string();
+    let mut csys = sq3.csys();
+
+    let rot = Matrix::rotation(-3.0*PI_4, Axis::Z);
+    println!("rot:\n {}", rot);
+    csys *= rot;
+    let rot = Matrix::rotation(-PI_2, Axis::X);
+    println!("rot:\n {}", rot);
+    csys *= rot;
+
+    let scale = Matrix::scale(Vec3::new([0.5, 1.0, 1.1]));
+    println!("scale:\n {}", scale);
+    csys *= scale;
+
+    csys.translate(Vec3::new([1.25,-0.333,-0.25]));
+    println!("csys:\n {}", csys);
+    sq3.set_csys(csys);
+    sq3.add(Box::new(s5));
+    scene.add(Box::new(sq3));
 
     scene
 }

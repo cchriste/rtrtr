@@ -94,17 +94,16 @@ impl Intersectable for Jumble {
         if crate::DEBUG {
             println!("{}intersect {{{}}} with {}", indent, self.name, ray);
 
-            // println!("{}csys: ",indent);
-            // println!("{}",self.csys);
-            // println!("{}csys_inv: ",indent);
-            // println!("{}",self.csys_inv);
-            // println!("{}csys_inv_xpose: ",indent);
-            // println!("{}",self.csys_inv_xpose);
+            println!("{}csys: ",indent);
+            println!("{}",self.csys);
+            println!("{}csys_inv: ",indent);
+            println!("{}",self.csys_inv);
+            println!("{}csys_inv_xpose: ",indent);
+            println!("{}",self.csys_inv_xpose);
         }
 
         // transform ray into this Jumble's coordinate system
-        //let new_ray = ray.transform(&self.csys_inv);
-        //let ray = ray.transform(&self.csys);
+        let ray = ray.transform(&self.csys_inv);
         if crate::DEBUG {
             println!("{} - transformed {}", indent, ray);
         }
@@ -136,7 +135,7 @@ impl Intersectable for Jumble {
             if crate::DEBUG {
                 println!("{} - pre-xform: {}", indent, hit);
             }
-            hit.point = self.csys_inv.apply_to_point(hit.point);
+            hit.point = self.csys.apply_to_point(hit.point);
             hit.normal = self.csys_inv_xpose.apply_to_vector(hit.normal);
 
             if crate::DEBUG {

@@ -4,8 +4,8 @@
 //  [x] change Vector -> Vec3, ::init to ::new
 //  [] create generic version of Vec<N> instead of all this cut n' pastin'
 //  [] create str ops for Vec3 so they, and wrappers like Point and Color) are tolerable to print
-//  [] create chainable matrix ops (M.translate(t).rotate(r,Axis::X).scale(s))
-//  [] remember how to properly transform normals (vectors) back into world space (M⁻¹)ᵀ*n
+//  [x] create chainable matrix ops (M.translate(t).rotate(r,Axis::X).scale(s))
+//  [x] remember how to properly transform normals (vectors) back into world space (M⁻¹)ᵀ*n
 //   - transforming ray into jumble space is actually M⁻¹*v, and M⁻¹*p
 //  [] use core::ops::Range instead of reinventing it
 //   - (https://doc.rust-lang.org/core/ops/struct.Range.html)
@@ -405,28 +405,18 @@ impl Matrix {
         return self.rows[i];
     }
 
-    pub fn scale(&mut self, k: f32) -> &mut Self {
-        self.rows[0][0] *= k;
-        self.rows[1][1] *= k;
-        self.rows[2][2] *= k;
-        self.rows[3][3] *= k;
-        self
+    pub fn scale(v: Vec3) -> Self {
+        let mut mat = Self::identity();
+        mat.rows[0][0] *= v[0];
+        mat.rows[1][1] *= v[1];
+        mat.rows[2][2] *= v[2];
+        mat
     }
 
-    pub fn scale_vec3(&mut self, v: Vec3) -> &mut Self {
-        self.rows[0][0] *= v[0];
-        self.rows[1][1] *= v[1];
-        self.rows[2][2] *= v[2];
-        self
-    }
-
-    pub fn scale_vec4(&mut self, v: Vec4) -> &mut Self {
-        self.rows[0][0] *= v[0];
-        self.rows[1][1] *= v[1];
-        self.rows[2][2] *= v[2];
-        self.rows[3][3] *= v[3];
-        self
-    }
+    // TODO: skew
+    // pub fn skew(...) -> Self {
+    //     ...
+    // }
 
     pub fn translate(&mut self, t: Vec3) -> &mut Self {
         self.rows[0][3] += t.x();
@@ -435,32 +425,33 @@ impl Matrix {
         self
     }
 
-    pub fn rotate(&mut self, rad: f32, axis: Axis) -> () {
-        println!("TODO: add Matrix::rotate");
+    pub fn rotation(rad: f32, axis: Axis) -> Self {
+        let mut mat = Self::identity();
         match axis {
             Axis::X => {
-                self.rows[1][1] += rad.cos();
-                self.rows[1][2] += rad.sin();
-                self.rows[2][1] += -rad.sin();
-                self.rows[2][2] += rad.cos();
+                mat.rows[1][1] += rad.cos();
+                mat.rows[1][2] += rad.sin();
+                mat.rows[2][1] += -rad.sin();
+                mat.rows[2][2] += rad.cos();
             },
             Axis::Y => {
-                self.rows[0][0] += rad.cos();
-                self.rows[0][2] += -rad.sin();
-                self.rows[2][0] += rad.sin();
-                self.rows[2][2] += rad.cos();
+                mat.rows[0][0] += rad.cos();
+                mat.rows[0][2] += -rad.sin();
+                mat.rows[2][0] += rad.sin();
+                mat.rows[2][2] += rad.cos();
             },
             Axis::Z => {
-                self.rows[0][0] += rad.cos();
-                self.rows[0][1] += rad.sin();
-                self.rows[1][0] += -rad.sin();
-                self.rows[1][1] += rad.cos();
+                mat.rows[0][0] += rad.cos();
+                mat.rows[0][1] += rad.sin();
+                mat.rows[1][0] += -rad.sin();
+                mat.rows[1][1] += rad.cos();
             }
         }
+        mat
     }
 
-    pub fn rotate_deg(&mut self, deg: f32, axis: Axis) -> () {
-        self.rotate(deg.to_radians(), axis);
+    pub fn rotation_deg(deg: f32, axis: Axis) -> Self {
+        Matrix::rotation(deg.to_radians(), axis)
     }
 }
 
@@ -492,11 +483,21 @@ impl Mul for Matrix {
     type Output = Self;
 
     fn mul(self, other: Self) -> Self {
-        Self { rows: [ Vec4::new([self.rows[0].dot(self.col(0)), self.rows[0].dot(self.col(1)), self.rows[0].dot(self.col(2)), self.rows[0].dot(self.col(3))]),
-                       Vec4::new([self.rows[1].dot(self.col(0)), self.rows[1].dot(self.col(1)), self.rows[1].dot(self.col(2)), self.rows[1].dot(self.col(3))]),
-                       Vec4::new([self.rows[2].dot(self.col(0)), self.rows[2].dot(self.col(1)), self.rows[2].dot(self.col(2)), self.rows[2].dot(self.col(3))]),
-                       Vec4::new([self.rows[3].dot(self.col(0)), self.rows[3].dot(self.col(1)), self.rows[3].dot(self.col(2)), self.rows[3].dot(self.col(3))]) ]
+        Self { rows: [ Vec4::new([self.rows[0].dot(other.col(0)), self.rows[0].dot(other.col(1)), self.rows[0].dot(other.col(2)), self.rows[0].dot(other.col(3))]),
+                       Vec4::new([self.rows[1].dot(other.col(0)), self.rows[1].dot(other.col(1)), self.rows[1].dot(other.col(2)), self.rows[1].dot(other.col(3))]),
+                       Vec4::new([self.rows[2].dot(other.col(0)), self.rows[2].dot(other.col(1)), self.rows[2].dot(other.col(2)), self.rows[2].dot(other.col(3))]),
+                       Vec4::new([self.rows[3].dot(other.col(0)), self.rows[3].dot(other.col(1)), self.rows[3].dot(other.col(2)), self.rows[3].dot(other.col(3))]) ]
         }
+    }
+}
+
+impl MulAssign for Matrix {
+    fn mul_assign(&mut self, other: Self) {
+        self.rows[0] = Vec4::new([self.rows[0].dot(other.col(0)), self.rows[0].dot(other.col(1)), self.rows[0].dot(other.col(2)), self.rows[0].dot(other.col(3))]);
+        self.rows[1] = Vec4::new([self.rows[1].dot(other.col(0)), self.rows[1].dot(other.col(1)), self.rows[1].dot(other.col(2)), self.rows[1].dot(other.col(3))]);
+        self.rows[2] = Vec4::new([self.rows[2].dot(other.col(0)), self.rows[2].dot(other.col(1)), self.rows[2].dot(other.col(2)), self.rows[2].dot(other.col(3))]);
+        self.rows[3] = Vec4::new([self.rows[3].dot(other.col(0)), self.rows[3].dot(other.col(1)), self.rows[3].dot(other.col(2)), self.rows[3].dot(other.col(3))]);
+        println!("mul_assign:\n{}",self);
     }
 }
 
