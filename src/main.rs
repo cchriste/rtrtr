@@ -9,9 +9,9 @@
 //#![allow(non_snake_case)]
 
 // <config> /////////////////////////////
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiaW configs
+const BOOK: bool = false; // try to match Shirley's RTiaW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
@@ -50,20 +50,23 @@ use crate::camera::*;
 
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { // TODO: return color
-    if depth <= 0 { return Vec3::zero(); }
+    if depth <= 0 { return Vec3::zero(); } // you can only dive so deep...
+    println!("{}...", crate::MAX_DEPTH-depth);
 
     let mut hit = HitRecord::new();
     match scene.intersect(ray, &Range::default(), &mut hit, indent_by) {
         Shot::Hit => {
             if crate::DEBUG {
-                println!("HIT! time: {}, point: {:?}, normal: {:?}",
-                         hit.t, hit.point, hit.normal);
+                println!("{}: {}", crate::MAX_DEPTH-depth, hit);
             }
             let target = random_reflection(REFL_TYPE, hit.point, hit.normal);
             return 0.5*ray_color(&Ray::new(hit.point, target - hit.point),
-                                 scene, depth-1, indent_by+2);
+                                 scene, depth-1, indent_by);
         },
         Shot::Miss => {
+            if crate::DEBUG {
+                println!("{}: MISS", crate::MAX_DEPTH-depth);
+            }
             let unit_dir = ray.dir.normalize();
             let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
             let white = Vec3::new([1.0, 1.0, 1.0]);
@@ -78,9 +81,9 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {IMAGE_HEIGHT/2+10} else {0};
+    let start_row = if DEBUG {IMAGE_HEIGHT/3-10} else {0};
     let end_row = IMAGE_HEIGHT;
-    let step_y: usize = if DEBUG { (IMAGE_HEIGHT/2).try_into().unwrap() } else { 1 };
+    let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
 
     let start_col = if DEBUG {IMAGE_WIDTH/4} else {0};
     let end_col = IMAGE_WIDTH;
@@ -101,6 +104,10 @@ static mut COLOR_RANGE: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]
 
 fn main() {
 
+    // let tst = Vec3::new([1.0,2.0,3.0]);
+    // println!("Test format v3: {} {:#?} {:?}",tst,tst,tst);
+    // return;
+
     // allocate dst image (just set length, don't initialize)
     let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4*IMAGE_WIDTH*IMAGE_HEIGHT).unwrap());
     unsafe { img.set_len(img.capacity()); }
@@ -120,13 +127,16 @@ fn main() {
         let rays = camera.gen_rays(pct_x, pct_y, nsamples);
         for ray in rays {
             //let ray = camera.gen_ray(pct_x, pct_y);
-            if DEBUG { println!("ray: {:?}",ray); }
+            if DEBUG {
+                println!("[pixel] ({}, {}):", px[0], px[1]);
+                //println!("shooting {}",ray);
+            }
             color += ray_color(&ray, &scene, MAX_DEPTH, 0/*indent*/);
         }
         color /= nsamples as f32;
 
         if DEBUG { //&& px[0] % IMAGE_WIDTH == 0 {
-            println!("color: {:?}\n", color);
+            println!("color: {}\n", color);
         }
 
         // update color minmax
@@ -147,7 +157,7 @@ fn main() {
 
     //let num_samples: f32 = pixels.len() as f32 * SAMPLES_PER_PIXEL as f32;
     unsafe {
-        println!("avg random vec ({} vecs): {:?}", NUM_RANDOMS, AVG_RANDOM_VEC / NUM_RANDOMS as f32);
+        println!("avg random vec ({} vecs): {}", NUM_RANDOMS, AVG_RANDOM_VEC / NUM_RANDOMS as f32);
         println!("color_range: {:?}", COLOR_RANGE);
     }
 
@@ -209,9 +219,11 @@ fn build_scene() -> Jumble {
 
     // the main stage
     let mut scene = Jumble::new();
+    scene.name = "main".to_string();
 
     // test fov is correctly computed
     let mut fov_test_scene = Jumble::new();
+    fov_test_scene.name = "fov_test".to_string();
     let radius = (std::f32::consts::PI / 4.0).cos();
     let sl = Sphere::new(Vec3::new([-radius,0.0,-1.0]), radius);
     let sr = Sphere::new(Vec3::new([radius,0.0,-1.0]), radius);
@@ -220,22 +232,24 @@ fn build_scene() -> Jumble {
     //scene.add(Box::new(fov_test_scene));
 
     let mut sub_scene = Jumble::new();
+    sub_scene.name = "sub".to_string();
     sub_scene.add(Box::new(s1));
     sub_scene.add(s2);
     scene.add(Box::new(sub_scene));
 
     let mut squishy_scene = Jumble::new();
-
+    squishy_scene.name = "squishy".to_string();
     // TODO: try the two, then the one, ensure they're the same
     //squishy_scene.csys.scale_vec3(Vec3::new([0.5, 0.5, 1.0]));
-    squishy_scene.csys.scale_vec3(Vec3::new([2.0, 2.0, 1.0]));  // FIXME: 2.0 does 0.5, oops! 
-    squishy_scene.csys.translate(Vec3::new([0.0,-0.5,0.0]));
+    let mut csys = squishy_scene.csys();
+    csys.scale_vec3(Vec3::new([2.0, 2.0, 1.0]));  // FIXME: 2.0 does 0.5, oops! 
+    csys.translate(Vec3::new([0.0,-0.5,0.0]));
     //squishy_scene.csys.rotate(er... 
     //squishy_scene.csys.scale_vec3(Vec3::new([0.5, 0.5, 1.0])).translate(Vec3::new([0.5,0.5,-1.0]));
-
+    squishy_scene.set_csys(csys);
     squishy_scene.add(Box::new(s3));
     //squishy_scene.add(s2); # TODO: use geometry en mas espacios
-    scene.add(Box::new(squishy_scene));
+    //scene.add(Box::new(squishy_scene));
 
     scene
 }

@@ -28,6 +28,13 @@ pub struct Vec3 {
 }
 
 use std::ops::{Mul, Div, Sub, Add, Neg, AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
+use std::fmt;
+
+impl fmt::Display for Vec3 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({:.4}î, {:.4}ĵ, {:.4}k̂)", self.v[0], self.v[1], self.v[2])
+    }
+}
 
 // operator[]
 impl Index<usize> for Vec3 {
@@ -215,12 +222,19 @@ pub struct Ray {
     pub dir: Vec3
 }
 
+impl fmt::Display for Ray {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "♐ o{} v{}", self.origin, self.dir)
+    }
+}
+
 impl Ray {
 
     pub fn new(origin: Vec3, dir: Vec3) -> Ray {
         Ray {
             origin,
-            dir: dir.normalize()  // do we need to normalize this here? (in particular, FIXME: coordsys in a jumble will need non-normalized ray directions)
+            //dir: dir.normalize()  // do we need to normalize this here? (in particular, FIXME: coordsys in a jumble will need non-normalized ray directions)
+            dir
         }
     }
 
@@ -232,16 +246,8 @@ impl Ray {
     }
 
     pub fn transform(&self, csys: &Matrix) -> Ray {
-        let o = Vec4::new([self.origin.x(),
-                           self.origin.y(),
-                           self.origin.z(),
-                           1.0]);
-        let v = Vec4::new([self.dir.x(),
-                           self.dir.y(),
-                           self.dir.z(),
-                           0.0]);
-        let o = *csys * o;  // ?: derefernce argument or just pass copy?
-        let v = *csys * v;
+        let o = csys.apply_to_point(self.origin);
+        let v = csys.apply_to_vector(self.dir);
         Ray {
             origin: Vec3::new([o.x(), o.y(), o.z()]),
             dir: Vec3::new([v.x(), v.y(), v.z()]),
@@ -271,7 +277,7 @@ impl OutsideRange for f32 {
 // a half-open range [tmin, tmax)
 impl Range {
     pub fn default() -> Self {
-        Range::new(0.00001, f32::INFINITY)
+        Range::new(0.001, f32::INFINITY)  // don't hit things too close or you'll get shadow acne
     }
 
     pub fn new(min: f32, max: f32) -> Self {
@@ -292,6 +298,12 @@ impl Range {
 pub struct Matrix {
     pub rows: [Vec4; 4],
 }
+
+// impl fmt::Display for Matrix {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+// // not sure yet        write!(f, "({:.4}î, {:.4}ĵ, {:.4}k̂)", self.v[0], self.v[1], self.v[2])
+//     }
+// }
 
 impl Matrix {
     pub fn identity() -> Matrix {
@@ -314,6 +326,18 @@ impl Matrix {
                          Vec4::new([self.rows[0][2], self.rows[1][2], self.rows[2][2], self.rows[3][2]]), 
                          Vec4::new([self.rows[0][3], self.rows[1][3], self.rows[2][3], self.rows[3][3]]) ]
         }
+    }
+
+    pub fn apply_to_point(&self, vec: Vec3) -> Vec3 {
+        let vec = Vec4::new([vec[0], vec[1], vec[2], 1.0]);
+        let vec = *self * vec;
+        Vec3::new([vec[0], vec[1], vec[3]])
+    }
+
+    pub fn apply_to_vector(&self, vec: Vec3) -> Vec3 {
+        let vec = Vec4::new([vec[0], vec[1], vec[2], 0.0]);
+        let vec = *self * vec;
+        Vec3::new([vec[0], vec[1], vec[3]])
     }
 
     // only same as transpose if they're orthogonal
@@ -482,6 +506,12 @@ impl Mul for Matrix {
 #[derive(Copy, Clone)]
 pub struct Vec4 {
     pub v: [f32; 4],
+}
+
+impl fmt::Display for Vec4 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({:.4}î, {:.4}ĵ, {:.4}k̂, {:.4}l̂)", self.v[0], self.v[1], self.v[2], self.v[3])
+    }
 }
 
 // operator[]
@@ -687,6 +717,12 @@ impl Vec4 {
 #[derive(Copy, Clone)]
 pub struct Vec2 {
     pub v: [f32; 2],
+}
+
+impl fmt::Display for Vec2 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "({:.4}î, {:.4}ĵ)", self.v[0], self.v[1])
+    }
 }
 
 // operator[]
