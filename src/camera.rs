@@ -131,7 +131,7 @@ fn get_blurriness(ref_type: SampleType) -> Vec2 {
         SampleType::PixelRatio => {
             // blurriness: [0.0050251256, 0.009009009] for IMAGE_HEIGHT = 200
             Vec2::new([1.0/(IMAGE_WIDTH-1) as f32,
-                              1.0/(IMAGE_HEIGHT-1) as f32])
+                       1.0/(IMAGE_HEIGHT-1) as f32])
         },
         SampleType::Blurry |
         SampleType::Blurrier => {

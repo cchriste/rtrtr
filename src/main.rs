@@ -2,6 +2,10 @@
 // September 2021
 // ?'s: see #learning Rust note in Standard Notes)
 
+// easy warmups
+// [] color use vec4
+// [] range use std::range
+
 // TODO periodically disable these; it's just hard to develop with them
 #![allow(dead_code)]
 #![allow(unused_variables)]
@@ -9,7 +13,7 @@
 //#![allow(non_snake_case)]
 
 // <config> /////////////////////////////
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 const LITE: bool = false;
 const BOOK: bool = false; // try to match Shirley's RTiaW configs
 
@@ -24,12 +28,13 @@ const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // render
 const SAMPLES_PER_PIXEL: u32 = if LITE {1} else if BOOK {100} else { 26 };
-const MAX_DEPTH: i32 = if LITE {2} else if BOOK { 100 } else { 25 };
+const MAX_DEPTH: i32 = if DEBUG {2} else if LITE {5} else if BOOK { 100 } else { 25 };
 
 // camera
 const FOCAL_LENGTH: f32 = 1.0;
 const FOV: f32 = 90.0;
-const SAMPLE_TYPE: camera::SampleType = if BOOK { SampleType::PixelRatio } else if LITE { SampleType::PixelRatio } else { SampleType::Blurry };
+const SAMPLE_TYPE: camera::SampleType = SampleType::PixelRatio;
+//const SAMPLE_TYPE: camera::SampleType = SampleType::Blurry;  // add this to the UI
 
 ///////////////////////////// </config>
 
@@ -51,7 +56,7 @@ use crate::camera::*;
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { // TODO: return color
     if depth <= 0 { return Vec3::zero(); } // you can only dive so deep...
-    println!("{}...", crate::MAX_DEPTH-depth);
+    if crate::DEBUG { println!("{}...", crate::MAX_DEPTH-depth); }
 
     let mut hit = HitRecord::new();
     match scene.intersect(ray, &Range::default(), &mut hit, indent_by) {

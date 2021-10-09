@@ -93,13 +93,20 @@ impl Intersectable for Jumble {
         let indent: String = indent.iter().cloned().collect();
         if crate::DEBUG {
             println!("{}intersect {{{}}} with {}", indent, self.name, ray);
+
+            // println!("{}csys: ",indent);
+            // println!("{}",self.csys);
+            // println!("{}csys_inv: ",indent);
+            // println!("{}",self.csys_inv);
+            // println!("{}csys_inv_xpose: ",indent);
+            // println!("{}",self.csys_inv_xpose);
         }
 
         // transform ray into this Jumble's coordinate system
         //let new_ray = ray.transform(&self.csys_inv);
-        let new_ray = ray.transform(&self.csys);
+        //let ray = ray.transform(&self.csys);
         if crate::DEBUG {
-            println!("{} - transformed {}", indent, new_ray);
+            println!("{} - transformed {}", indent, ray);
         }
 
         let mut hit_something = false;
@@ -109,7 +116,7 @@ impl Intersectable for Jumble {
                 //println!("obj: {:?}", obj); // can just be too much (e.g., array of objects)
                 // println!("{}rng: {:?}", indent, rng);
             }
-            match obj.intersect(&new_ray, rng, hit, indent_by+2) {
+            match obj.intersect(&ray, rng, hit, indent_by+2) {
                 Shot::Hit => { // NOTE: a long-winded way to say `hit_something |= intersect()
                     hit_something = true;
                     // if crate::DEBUG {
@@ -126,15 +133,15 @@ impl Intersectable for Jumble {
         if hit_something {
             // TODO: transform hit point and its normal out of csys
             // remember, normal is trickier
-            // hit.point = self.csys.apply_to_point(hit.point);
-            // hit.normal = self.csys.transpose().apply_to_vector(hit.normal);
+            if crate::DEBUG {
+                println!("{} - pre-xform: {}", indent, hit);
+            }
             hit.point = self.csys_inv.apply_to_point(hit.point);
             hit.normal = self.csys_inv_xpose.apply_to_vector(hit.normal);
 
-            // if crate::DEBUG {
-            //     println!("{} - hit {}", indent, hit);
-            // }
-
+            if crate::DEBUG {
+                println!("{} - pst-xform: {}", indent, hit);
+            }
             return Shot::Hit;
         }
         //if crate::DEBUG { println!("{}air rayyyyy!", indent);}

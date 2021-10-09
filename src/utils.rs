@@ -55,8 +55,8 @@ impl Neg for Vec3 {
     type Output = Vec3;
     fn neg(self) -> Vec3 {
         Vec3 { v: [-self.v[0],
-                     -self.v[1],
-                     -self.v[2]] }
+                   -self.v[1],
+                   -self.v[2]] }
     }
 }
 
@@ -64,16 +64,16 @@ impl Add for Vec3 {
     type Output = Vec3;
     fn add(self, other: Vec3) -> Vec3 {
         Vec3 { v: [self.v[0] + other.v[0],
-                     self.v[1] + other.v[1],
-                     self.v[2] + other.v[2]] }
+                   self.v[1] + other.v[1],
+                   self.v[2] + other.v[2]] }
     }
 }
 
 impl AddAssign for Vec3 {
     fn add_assign(&mut self, other: Vec3) -> () {
         *self = Vec3 { v: [self.v[0] + other.v[0],
-                             self.v[1] + other.v[1],
-                             self.v[2] + other.v[2]] }
+                           self.v[1] + other.v[1],
+                           self.v[2] + other.v[2]] }
     }
 }
 
@@ -81,16 +81,16 @@ impl Sub for Vec3 {
     type Output = Vec3;
     fn sub(self, other: Vec3) -> Vec3 {
         Vec3 { v: [self.v[0] - other.v[0],
-                     self.v[1] - other.v[1],
-                     self.v[2] - other.v[2]] }
+                   self.v[1] - other.v[1],
+                   self.v[2] - other.v[2]] }
     }
 }
 
 impl SubAssign for Vec3 {
     fn sub_assign(&mut self, other: Vec3) -> () {
         *self = Vec3 { v: [self.v[0] - other.v[0],
-                             self.v[1] - other.v[1],
-                             self.v[2] - other.v[2]] }
+                           self.v[1] - other.v[1],
+                           self.v[2] - other.v[2]] }
     }
 }
 
@@ -108,8 +108,8 @@ impl Mul<Vec3> for f32 {
     type Output = Vec3;
     fn mul(self, vec: Vec3) -> Vec3 {
         Vec3 { v: [vec.v[0] * self,
-                     vec.v[1] * self,
-                     vec.v[2] * self] }
+                   vec.v[1] * self,
+                   vec.v[2] * self] }
     }
 }
 
@@ -199,8 +199,8 @@ impl Vec3 {
         // = (a1b2 - a2b1)î - (a2b0 - a0b2)ĵ + (a0b1 - a1b0)k̂
         //
         Vec3 { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
-                     self.v[2]*other.v[0] - self.v[0]*other.v[2],
-                     self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
+                   self.v[2]*other.v[0] - self.v[0]*other.v[2],
+                   self.v[0]*other.v[1] - self.v[1]*other.v[0]] }
     }
 
     pub fn unit_vector(&v: &Vec3) -> Vec3 {
@@ -241,8 +241,8 @@ impl Ray {
     pub fn at(&self, t: f32) -> Vec3 {
         let v = self.dir.mul(t);
         Vec3 { v: [self.origin.x() + v.x(),
-                     self.origin.y() + v.y(),
-                     self.origin.z() + v.z()] }
+                   self.origin.y() + v.y(),
+                   self.origin.z() + v.z()] }
     }
 
     pub fn transform(&self, csys: &Matrix) -> Ray {
@@ -299,11 +299,12 @@ pub struct Matrix {
     pub rows: [Vec4; 4],
 }
 
-// impl fmt::Display for Matrix {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-// // not sure yet        write!(f, "({:.4}î, {:.4}ĵ, {:.4}k̂)", self.v[0], self.v[1], self.v[2])
-//     }
-// }
+impl fmt::Display for Matrix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "x{}\ny{}\nz{}\nw{}",
+               self.rows[0],self.rows[1],self.rows[2],self.rows[3])
+    }
+}
 
 impl Matrix {
     pub fn identity() -> Matrix {
@@ -331,13 +332,13 @@ impl Matrix {
     pub fn apply_to_point(&self, vec: Vec3) -> Vec3 {
         let vec = Vec4::new([vec[0], vec[1], vec[2], 1.0]);
         let vec = *self * vec;
-        Vec3::new([vec[0], vec[1], vec[3]])
+        Vec3::new([vec[0], vec[1], vec[2]])
     }
 
     pub fn apply_to_vector(&self, vec: Vec3) -> Vec3 {
         let vec = Vec4::new([vec[0], vec[1], vec[2], 0.0]);
         let vec = *self * vec;
-        Vec3::new([vec[0], vec[1], vec[3]])
+        Vec3::new([vec[0], vec[1], vec[2]])
     }
 
     // only same as transpose if they're orthogonal
@@ -859,7 +860,7 @@ impl Vec2 {
         Self { v: [0.0, 0.0] }
     }
 
-// just implement stuff like this as it's needed (which it probably will be for sampling)
+    // just implement stuff like this as it's needed (which it probably will be for sampling)
     // pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
     //     Self { v: [x, y, z, w] }
     // }
