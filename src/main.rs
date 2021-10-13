@@ -3,8 +3,8 @@
 // ?'s: see #learning Rust note in Standard Notes)
 
 // easy warmups
-// [] color use vec4
-// [] range use std::range
+// [x] color use vec4
+// [-] range use std::ops::range is actually just for Idx, things like (2..5) for 2,3,4
 
 // TODO periodically disable these; it's just hard to develop with them
 #![allow(dead_code)]
@@ -14,8 +14,8 @@
 
 // <config> /////////////////////////////
 const DEBUG: bool = false;
-const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiaW configs
+const LITE: bool = true;
+const BOOK: bool = false; // try to match Shirley's RTiaW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
@@ -60,8 +60,8 @@ mod camera; // FIXME: shouldn't this [be able to] go in camera.rs?
 use crate::camera::*;
 
 // color of ray(origin, dir)
-fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { // TODO: return color
-    if depth <= 0 { return Vec3::zero(); } // you can only dive so deep...
+fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
+    if depth <= 0 { return Color::black(); } // you can only dive so deep...
     if crate::DEBUG { println!("{}...", crate::MAX_DEPTH-depth); }
 
     let mut hit = HitRecord::new();
@@ -80,9 +80,8 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Vec3 { 
             }
             let unit_dir = ray.dir.normalize();
             let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport
-            let white = Vec3::new([1.0, 1.0, 1.0]);
-            let bluey = Vec3::new([0.5, 0.7, 1.0]);
-            return white*(1.0 - t) + bluey*t;
+            let bluey = Color::new([0.5, 0.7, 1.0]);
+            return Color::white()*(1.0 - t) + bluey*t;
         }
     }
 }
@@ -110,9 +109,11 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     pixels
 }
 
-static mut AVG_RANDOM_VEC: Vec3 = Vec3::zero();
-static mut NUM_RANDOMS: u32 = 0;
-static mut COLOR_RANGE: ([f32; 3], [f32; 3]) = ([1.0, 1.0, 1.0], [0.0, 0.0, 0.0]);
+// Added to track random vectors since shadows seem to be on the right just a little more than the left
+static mut AVG_RANDOM_VEC: Vec3 = Vec3::zero(); // maybe remove these two as they have validated random
+static mut NUM_RANDOMS: u32 = 0;   // but... avg random vec (208079 vecs): (0.5003î, 0.5002ĵ, 0.5001k̂)
+
+static mut COLOR_RANGE: (Color, Color) = (Color::white(), Color::black());
 
 fn main() {
 
@@ -135,7 +136,7 @@ fn main() {
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
         let nsamples = if !DEBUG {SAMPLES_PER_PIXEL} else {1};
-        let mut color = Vec3::new([0.0,0.0,0.0]);
+        let mut color = Color::black();
         let rays = camera.gen_rays(pct_x, pct_y, nsamples);
         for ray in rays {
             //let ray = camera.gen_ray(pct_x, pct_y);
@@ -153,24 +154,24 @@ fn main() {
 
         // update color minmax
         unsafe {
-            for c in 0..3 {
-                COLOR_RANGE.0[c] = COLOR_RANGE.0[c].min(color.v[c]);
-                COLOR_RANGE.1[c] = COLOR_RANGE.1[c].max(color.v[c]);
+            for c in 0..4 {
+                COLOR_RANGE.0[c] = COLOR_RANGE.0[c].min(color[c]);
+                COLOR_RANGE.1[c] = COLOR_RANGE.1[c].max(color[c]);
             }
         }
 
         // 4 * (current height * image width + current width)
         let idx = usize::try_from(4*((IMAGE_HEIGHT-1 - px[1]) * IMAGE_WIDTH + px[0])).unwrap();
-        img[idx + 0] = color.v[0];
-        img[idx + 1] = color.v[1];
-        img[idx + 2] = color.v[2];
-        img[idx + 3] = 1.0;
+        img[idx + 0] = color[0];
+        img[idx + 1] = color[1];
+        img[idx + 2] = color[2];
+        img[idx + 3] = color[3];
     }
 
     //let num_samples: f32 = pixels.len() as f32 * SAMPLES_PER_PIXEL as f32;
     unsafe {
         println!("avg random vec ({} vecs): {}", NUM_RANDOMS, AVG_RANDOM_VEC / NUM_RANDOMS as f32);
-        println!("color_range: {:?}", COLOR_RANGE);
+        println!("color_range: [{}, {}]", COLOR_RANGE.0, COLOR_RANGE.1);
     }
 
     write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH, IMAGE_HEIGHT);
@@ -279,7 +280,7 @@ fn build_scene() -> Jumble {
     csys *= scale;
 
     csys.translate(Vec3::new([-1.25, 0.25, 0.0]));
-    println!("csys:\n {}", csys);
+    println!("csys:\n{}", csys);
     sq2.set_csys(csys);
     sq2.add(Box::new(s4));
     scene.add(Box::new(sq2));

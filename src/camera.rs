@@ -1,4 +1,4 @@
-use crate::utils::{Ray, Vec2, Vec3, dot, print_type_of, Range, OutsideRange};
+use crate::utils::*;
 use rand::{Rng, thread_rng};
 use rand::distributions::Uniform; // generate more evenly distributed random values
 

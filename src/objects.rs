@@ -9,7 +9,7 @@ use std::fmt;
 // TODO: try creating mod.Intersectable so this can be Intersectable: mod.Intersectable + Debug
 //pub trait Intersectable: Intersectable + Debug {}
 
-use crate::utils::{Ray, Vec3, dot, print_type_of, Range, OutsideRange, Matrix};  // Vec3-y!
+use crate::utils::*;
 
 // hit record
 #[derive(Debug)]
