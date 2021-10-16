@@ -1,5 +1,6 @@
 // mod utils
-// Color, Vec3, Vec4, Axis, Matrix, Range, Ray
+// Color, Vec<sz>, Axis, Matrix, Range, Ray
+
 // TODO:
 //  [x] change Vector -> Vec3, ::init to ::new
 //  [] create generic version of Vec<N> instead of all this cut n' pastin'
@@ -14,7 +15,7 @@
 //     Is the retval const? It doesn't get a self ref, so what else would it be?
 //
 
-// pretty handy... not really, just prints what the object implements
+// not very handy, just prints what the object implements
 pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
@@ -24,41 +25,27 @@ use std::fmt;
 
 pub enum Axis { X, Y, Z }
 
-pub struct Color {
-    val: Vec4,
-}
+pub struct Color(Vec4);
 
 impl Color {
     // default opaque (alpha = 1)
     pub const fn new(v: [f32; 3]) -> Self {
-        Self { val: Vec4::new([v[0], v[1], v[2], 1.0]) }
+        Self(Vec4::new([v[0], v[1], v[2], 1.0]))
     }
 
     pub const fn new_alpha(v: [f32; 4]) -> Self {
-        Self { val: Vec4::new(v) }
+        Self(Vec4::new(v))
     }
 
     // TODO: functions to apply gamma, return as vec[u8; 4] (though likely u32 but range of u8)
 
-// despite this working:
-    // impl Index<usize> for Color {
-    //     type Output = f32;
-    //     fn index(&self, idx: usize) -> &Self::Output {
-    //         &self.v[idx]
-    //     }
-    // }
-//...this can't be done (says can't assign f32 to &f32; and of course changing 0.5 to &0.5 fails):
-    // pub fn alpha(&self) -> &f32 {
-    //     &self.val[3]
-    // }
-
-    pub const fn black() -> Self { Self { val: Vec4::new([0.0, 0.0, 0.0, 1.0]) } }
-    pub const fn white() -> Self { Self { val: Vec4::new([1.0, 1.0, 1.0, 1.0]) } }
+    pub const fn black() -> Self { Self(Vec4::new([0.0, 0.0, 0.0, 1.0])) }
+    pub const fn white() -> Self { Self(Vec4::new([1.0, 1.0, 1.0, 1.0])) }
 }
 
 impl fmt::Display for Color {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "(R:{:.4} G:{:.4} B:{:.4} A:{:.4})", self.val[0], self.val[1], self.val[2], self.val[3])
+        write!(f, "(R:{:.4} G:{:.4} B:{:.4} A:{:.4})", self.0[0], self.0[1], self.0[2], self.0[3])
     }
 }
 
@@ -66,14 +53,14 @@ impl fmt::Display for Color {
 impl Index<usize> for Color {
     type Output = f32; // [] can I ask something like `val.v.type`? What if Vec4 went to f64
     fn index(&self, idx: usize) -> &Self::Output {
-        &self.val[idx]
+        &self.0[idx]
     }
 }
 
 // assignable operator[]
 impl IndexMut<usize> for Color {
     fn index_mut(&mut self, idx: usize) -> &mut Self::Output {
-        &mut self.val[idx]
+        &mut self.0[idx]
     }
 }
 
@@ -81,59 +68,59 @@ impl IndexMut<usize> for Color {
 impl Mul<Color> for f32 {
     type Output = Color;
     fn mul(self, col: Color) -> Color {
-        Color { val: self * col.val }    // I like this k*val even more second time around
+        Color(self * col.0)    // I like this k*val even more second time around
     }
 }
 
 impl Mul<f32> for Color {
     type Output = Self;
     fn mul(self, k: f32) -> Self {
-        Self { val: self.val * k }
+        Self(self.0 * k)
     }
 }
 
 impl MulAssign<f32> for Color {
     fn mul_assign(&mut self, k: f32) -> () {
-        *self = Self { val: self.val * k }
+        *self = Self(self.0 * k)
     }
 }
 
 impl Div<f32> for Color {
     type Output = Self;
     fn div(self, k: f32) -> Self {
-        Self { val: self.val / k }
+        Self(self.0 / k)
     }
 }
 
 impl DivAssign<f32> for Color {
     fn div_assign(&mut self, k: f32) -> () {
-        *self = Self { val: self.val / k }
+        *self = Self(self.0 / k)
     }
 }
 
 impl Add for Color {
     type Output = Color;
     fn add(self, other: Color) -> Color {
-        Color { val: self.val + other.val }
+        Color(self.0 + other.0)
     }
 }
 
 impl AddAssign for Color {
     fn add_assign(&mut self, other: Color) -> () {
-        *self = Color { val: self.val + other.val }
+        *self = Color(self.0 + other.0)
     }
 }
 
 impl Sub for Color {
     type Output = Color;
     fn sub(self, other: Color) -> Color {
-        Color { val: self.val - other.val }
+        Color(self.0 - other.0)
     }
 }
 
 impl SubAssign for Color {
     fn sub_assign(&mut self, other: Color) -> () {
-        *self = Color { val: self.val - other.val }
+        *self = Color(self.0 - other.0)
     }
 }
 
@@ -747,12 +734,6 @@ impl DivAssign<f32> for Vec4 {
     }
 }
 
-// doh! "There can be only one!™
-// (dot for Vec3 already exists, so we'll just have to v1.dot(v2) instead of dot(v1, v2)
-// pub fn dot(v1: &Vec4, v2: &Vec4) -> f32 {
-//     v1.dot(v2)
-// }
-
 impl Vec4 {
     pub const fn zero() -> Self {
         Self { v: [0.0, 0.0, 0.0, 0.0] }
@@ -772,24 +753,9 @@ impl Vec4 {
     }
 
     // no len, len_squared, normalize, or unit_vector since doesn't make sense
-
-    // technically possible for Vec4, but is it needed?
-    // pub fn cross(&self, other: &Vec4) -> Vec4 {
-    //     //        |  î   ĵ   k̂ |
-    //     // det of | a0  a1  a2 |
-    //     //        | b0  b1  b2 |
-    //     //
-    //     // = (a1b2 - a2b1)î - (a2b0 - a0b2)ĵ + (a0b1 - a1b0)k̂
-    //     //
-    //     Vec4 { v: [self.v[1]*other.v[2] - self.v[2]*other.v[1],
-    //                self.v[2]*other.v[0] - self.v[0]*other.v[2],
-    //                self.v[0]*other.v[1] - self.v[1]*other.v[0],
-    //                1.0] }
-    // }
+    // no cross since it's not possible for Vec4
 }
 
-// ================================================================================
-// Vec2
 #[derive(Debug)]
 #[derive(Copy, Clone)]
 pub struct Vec2 {
@@ -942,11 +908,17 @@ impl Vec2 {
         self.v[0]*other.v[0] + self.v[1]*other.v[1]
     }
 
-    // useful(?) to assume they're 3d with z=0 (e.g, magnitude of cross is area of parallelogram)
-    pub fn cross(&self, other: &Vec2) -> Vec3 {
-        let v0 = Vec3::new([self[0], self[1], 0.0]);
-        let v1 = Vec3::new([other[0], other[1], 0.0]);
-        v0.cross(&v1)
+    // useful to assume they're 3d with z=0
+    // - magnitude of cross is area of parallelogram
+    // - sign indicates clockwise or counterclockwise
+    // - can be used to determine angle between vectors
+    //   | a x b | = |a| dot |b| sine(theta)
+    //   i.e., sine(theta) = | a x b | / (|a| . |b|)
+    // - just returning value of z since x and y are always 0
+    pub fn cross(&self, other: &Vec2) -> f32 {
+        // | a0  a1 |
+        // | b0  b1 |
+        self[0]*other[1] - self[1]*other[0]
     }
 
     pub fn unit_vector(&v: &Vec2) -> Vec2 {
