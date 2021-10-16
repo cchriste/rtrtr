@@ -49,6 +49,7 @@ use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::f32::consts::PI;
+use std::rc::Rc;
 
 mod utils;
 use crate::utils::*;
@@ -226,31 +227,33 @@ fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
 
 fn build_scene() -> Jumble {
     // instances of geometry
-    let s1 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
-    let s2 = Box::new(Sphere::new(Vec3::new([0.0,-100.5,-1.0]), 100.0));
-    let s3 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
-    let s4 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
-    let s5 = Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5);
+    let s1: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5));
+    let s2: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,-100.5,-1.0]), 100.0));
+    let s3: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5));
 
     // the main stage
     let mut scene = Jumble::new();
     scene.name = "main".to_string();
 
+
     // test fov is correctly computed
     let mut fov_test_scene = Jumble::new();
     fov_test_scene.name = "fov_test".to_string();
     let radius = (std::f32::consts::PI / 4.0).cos();
-    let sl = Sphere::new(Vec3::new([-radius,0.0,-1.0]), radius);
-    let sr = Sphere::new(Vec3::new([radius,0.0,-1.0]), radius);
-    fov_test_scene.add(Box::new(sl));
-    fov_test_scene.add(Box::new(sr));
-    //scene.add(Box::new(fov_test_scene));
+    // NOTE: two ways to declare the same type (the book teaches the first)
+    let sl: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-radius,0.0,-1.0]), radius));
+    let sr = Rc::new(Sphere::new(Vec3::new([radius,0.0,-1.0]), radius)) as Rc<dyn Intersectable>;
+    fov_test_scene.add(Rc::clone(&sl));
+    fov_test_scene.add(Rc::clone(&sr));
+    //scene.add(Rc::new(fov_test_scene) as Rc<dyn Intersectable>);
+
 
     let mut sub_scene = Jumble::new();
     sub_scene.name = "sub".to_string();
-    sub_scene.add(Box::new(s1));
-    sub_scene.add(s2);
-    scene.add(Box::new(sub_scene));
+    sub_scene.add(Rc::clone(&s1));
+    sub_scene.add(Rc::clone(&s2));
+    scene.add(Rc::new(sub_scene) as Rc<dyn Intersectable>);
+
 
     let mut squishy_scene = Jumble::new();
     squishy_scene.name = "squishy".to_string();
@@ -259,10 +262,10 @@ fn build_scene() -> Jumble {
     csys *= scale;
     csys.translate(Vec3::new([0.0,-0.5,0.0]));
     squishy_scene.set_csys(csys);
-    squishy_scene.add(Box::new(s3));
-    //squishy_scene.add(Box::new(s1));// FIXME: usa los objectos en mas espacios
-    //squishy_scene.add(s2); // FIXME: usa los objectos en mas espacios
-    scene.add(Box::new(squishy_scene));
+    squishy_scene.add(Rc::clone(&s3));
+    squishy_scene.add(Rc::clone(&s1));
+    squishy_scene.add(Rc::clone(&s2));
+    scene.add(Rc::new(squishy_scene) as Rc<dyn Intersectable>);
 
 
     let mut sq2 = Jumble::new();
@@ -282,8 +285,8 @@ fn build_scene() -> Jumble {
     csys.translate(Vec3::new([-1.25, 0.25, 0.0]));
     println!("csys:\n{}", csys);
     sq2.set_csys(csys);
-    sq2.add(Box::new(s4));
-    scene.add(Box::new(sq2));
+    sq2.add(Rc::clone(&s1));
+    scene.add(Rc::new(sq2) as Rc<dyn Intersectable>);
 
 
     let mut sq3 = Jumble::new();
@@ -304,8 +307,9 @@ fn build_scene() -> Jumble {
     csys.translate(Vec3::new([1.25,-0.333,-0.25]));
     println!("csys:\n {}", csys);
     sq3.set_csys(csys);
-    sq3.add(Box::new(s5));
-    scene.add(Box::new(sq3));
+    sq3.add(Rc::clone(&s1));
+    scene.add(Rc::new(sq3) as Rc<dyn Intersectable>);
+
 
     scene
 }

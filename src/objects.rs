@@ -10,6 +10,7 @@ use std::fmt;
 //pub trait Intersectable: Intersectable + Debug {}
 
 use crate::utils::*;
+pub use std::rc::Rc;  // FIXME: purportedly we don't have to `use` in every module, but not working
 
 // hit record
 #[derive(Debug)]
@@ -51,7 +52,7 @@ pub trait Intersectable {
 //#[derive(Debug)]
 pub struct Jumble {
     pub name: String,
-    arr: Vec<Box<dyn Intersectable>>,
+    arr: Vec<Rc<dyn Intersectable>>,
     csys: Matrix,
     csys_inv: Matrix,
     csys_inv_xpose: Matrix,
@@ -73,7 +74,7 @@ impl Jumble {
         self.csys
     }
 
-    pub fn add(&mut self, obj: Box<dyn Intersectable>) {
+    pub fn add(&mut self, obj: Rc<dyn Intersectable>) {
         self.arr.push(obj)
     }
 
