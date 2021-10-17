@@ -31,10 +31,10 @@ pub fn build_scene() -> Jumble {
 
     let mut shiny_scene = Jumble::new();
     scene.name = "shiny".to_string();
-    shiny_scene.add(Rc::clone(&s1));
-    shiny_scene.add(Rc::clone(&s2));
-    shiny_scene.add(Rc::clone(&s3));
-    shiny_scene.add(Rc::clone(&s4));
+    shiny_scene.add(Rc::clone(&s1)); // center
+    shiny_scene.add(Rc::clone(&s2)); // ground
+    shiny_scene.add(Rc::clone(&s3)); // left
+    shiny_scene.add(Rc::clone(&s4)); // right
     scene.add(Rc::new(shiny_scene) as Rc<dyn Intersectable>);
 
 
@@ -76,15 +76,21 @@ pub fn build_scene() -> Jumble {
     let rot = Matrix::rotation(-3.0*PI_4, Axis::Z);
     //let rot = Matrix::rotation(-PI_4, Axis::Y);
     //let rot = Matrix::rotation(-PI_4, Axis::X);
-    println!("rot:\n {}", rot);
+    if crate::DEBUG {
+        //println!("rot:\n {}", rot);
+    }
     csys *= rot;
 
     let scale = Matrix::scale(Vec3::new([0.5, 1.25, 1.0]));
-    println!("scale:\n {}", scale);
+    if crate::DEBUG {
+        //println!("scale:\n {}", scale);
+    }
     csys *= scale;
 
     csys.translate(Vec3::new([-1.25, 0.25, 0.0]));
-    println!("csys:\n{}", csys);
+    if crate::DEBUG {
+        //println!("csys:\n{}", csys);
+    }
     sq2.set_csys(csys);
     sq2.add(Rc::clone(&s1));
     //scene.add(Rc::new(sq2) as Rc<dyn Intersectable>);
@@ -95,18 +101,26 @@ pub fn build_scene() -> Jumble {
     let mut csys = sq3.csys();
 
     let rot = Matrix::rotation(-3.0*PI_4, Axis::Z);
-    println!("rot:\n {}", rot);
+    if crate::DEBUG {
+        //println!("rot:\n {}", rot);
+    }
     csys *= rot;
     let rot = Matrix::rotation(-PI_2, Axis::X);
-    println!("rot:\n {}", rot);
+    if crate::DEBUG {
+        //println!("rot:\n {}", rot);
+    }
     csys *= rot;
 
     let scale = Matrix::scale(Vec3::new([0.5, 1.0, 1.1]));
-    println!("scale:\n {}", scale);
+    if crate::DEBUG {
+        //println!("scale:\n {}", scale);
+    }
     csys *= scale;
 
     csys.translate(Vec3::new([1.25,-0.333,-0.25]));
-    println!("csys:\n {}", csys);
+    if crate::DEBUG {
+        //println!("csys:\n {}", csys);
+    }
     sq3.set_csys(csys);
     sq3.add(Rc::clone(&s1));
     //scene.add(Rc::new(sq3) as Rc<dyn Intersectable>);

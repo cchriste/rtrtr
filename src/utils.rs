@@ -342,7 +342,7 @@ impl Vec3 {
 
     // a perfect reflection across the normal
     pub fn reflect(&self, n: &Vec3) -> Vec3 {
-        *self - 2.0*self.dot(*self) * (*n)
+        *self - 2.0*self.dot(*n) * (*n)
     }
 }
 
@@ -634,7 +634,6 @@ impl MulAssign for Matrix {
         self.rows[1] = Vec4::new([self.rows[1].dot(other.col(0)), self.rows[1].dot(other.col(1)), self.rows[1].dot(other.col(2)), self.rows[1].dot(other.col(3))]);
         self.rows[2] = Vec4::new([self.rows[2].dot(other.col(0)), self.rows[2].dot(other.col(1)), self.rows[2].dot(other.col(2)), self.rows[2].dot(other.col(3))]);
         self.rows[3] = Vec4::new([self.rows[3].dot(other.col(0)), self.rows[3].dot(other.col(1)), self.rows[3].dot(other.col(2)), self.rows[3].dot(other.col(3))]);
-        println!("mul_assign:\n{}",self);
     }
 }
 

@@ -56,9 +56,15 @@ impl Shiny {
 impl Material for Shiny {
     // Shinies always reflect, never absorb
     fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
-        let dir = random_direction(REFL_TYPE, hit.normal);
+        let dir = ray.dir.reflect(&hit.normal);
         if dir.dot(hit.normal) > 0.0 {
+            if DEBUG {
+                println!("shiny hit! (reflected ray dir: {})", dir);
+            }
             return Attenuated(self.albedo, Ray::new(hit.point, dir));
+        }
+        if DEBUG {
+            println!("shiny absorbed? must've been an abnormal day");
         }
         Absorbed
     }

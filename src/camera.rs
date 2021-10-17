@@ -7,7 +7,7 @@ pub struct Camera {
     viewport_height: f32,
     viewport_width: f32,
     aspect_ratio: f32,
-    jitter: Vec2,
+    blur: Vec2,
     focal_length: f32,
     vfov: f32, // in degrees
     origin: Vec3,
@@ -41,7 +41,7 @@ impl Camera {
         let z = right.cross(&up).normalize();
         let look = z * -1.0;
         let botleft = origin - right/2.0 - up/2.0 + look*focal_length;
-        let jitter = get_blurriness(sample_type);
+        let blur = get_blurriness(sample_type);
         Camera { aspect_ratio,
                  vfov,
                  focal_length,
@@ -53,31 +53,24 @@ impl Camera {
                  z,
                  look,
                  botleft,
-                 jitter,
+                 blur,
         }
     }
-
-    // pub fn gen_ray(&self, pct_x: f32, pct_y: f32) -> Ray {
-    //     let mut rng = thread_rng();
-    //     let unit = Uniform::new(0.0, 1.0); // maybe more uniform than otherwise
-    //     let j: [f32; 2] = [rng.sample(unit), rng.sample(unit)];
-    //     Ray::new(self.origin,
-    //              self.botleft - self.origin +
-    //              self.right*(pct_x + (j[0]-0.5)*self.jitter[0]) +
-    //              self.up*(pct_y + (j[1]-0.5)*self.jitter[1]))
-    // }
 
     pub fn gen_rays(&self, pct_x: f32, pct_y: f32, n: u32) -> Vec<Ray> {
         let mut rng = thread_rng();
         let unitx = Uniform::new(-0.5, 0.5); // maybe more uniform than otherwise
         let unity = Uniform::new(-0.5, 0.5); // maybe more uniform than otherwise
+        // TODO: add jittering for more uniform coverage
+        // actually, use this: https://docs.rs/rand/0.5.0/rand/distributions/uniform/struct.Uniform.html
         let mut ret = Vec::<Ray>::new();
         for _ in 0..n {
-            let j: [f32; 2] = [rng.sample(unitx), rng.sample(unity)];
-            ret.push(Ray::new(self.origin,
-                              self.botleft - self.origin +
-                              self.right*(pct_x + j[0]*self.jitter[0]) +
-                              self.up*(pct_y + j[1]*self.jitter[1])));
+            let j: [f32; 2] = if DEBUG { [0.5, 0.5] } else { [rng.sample(unitx), rng.sample(unity)] };
+            let dir =
+                (self.botleft - self.origin +
+                 self.right*(pct_x + j[0]*self.blur[0]) +
+                 self.up*(pct_y + j[1]*self.blur[1])).normalize(); // NOTE: normalizing dir
+            ret.push(Ray::new(self.origin, dir));
         }
         ret
     }
@@ -137,7 +130,7 @@ fn get_blurriness(ref_type: SampleType) -> Vec2 {
         SampleType::Blurrier => {
             // Pass blurriness level to camera as size of pixel in camera space. I don't
             // like manually computing this here since it's already done in the camera;
-            // maybe move blurriness to the camera, shake it up and jitter some samples
+            // maybe move blurriness to the camera
             let viewport_height = FOCAL_LENGTH*2.0 * (FOV.to_radians()/2.0).tan();
 
             // this is currently pixel dims, but it can get fancier
@@ -147,7 +140,9 @@ fn get_blurriness(ref_type: SampleType) -> Vec2 {
         },
     };
 
-    println!("pixelsize: {:?}", blurriness);
+    if crate::DEBUG {
+        println!("pixelsize: {:?}", blurriness);
+    }
     blurriness
 }
 

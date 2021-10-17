@@ -2,9 +2,13 @@
 // September 2021
 // ?'s: see #learning Rust note in Standard Notes)
 
-// easy warmups
-// [x] color use vec4
-// [-] range use std::ops::range is actually just for Idx, things like (2..5) for 2,3,4
+// NIKE™ tasks:
+// [] use lib.rs
+// [] Rust Programming Language ch 10
+// [] push to GitHub
+// [] add to GitHub.io home page
+// [] add jittering for more uniform coverage (for gen_rays... where else?)
+//  - NOTE: lens is a circle, pixel is a square
 
 // TODO periodically disable these; it's just hard to develop with them
 #![allow(dead_code)]
@@ -13,13 +17,13 @@
 //#![allow(non_snake_case)]
 
 // <config> /////////////////////////////
+
 const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiaW configs
+const BOOK: bool = true; // try to match Shirley's RTiOW configs
 
 // Lambertian reflection equation
-const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
-//const REFL_TYPE: ReflectionType = ReflectionType::PointOnHemisphere;  // add this to the UI
+const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
@@ -28,7 +32,7 @@ const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // render
 const SAMPLES_PER_PIXEL: u32 = if DEBUG {1} else if LITE {5} else if BOOK {100} else { 26 };
-const MAX_DEPTH: i32 = if DEBUG {2} else if LITE {5} else if BOOK { 100 } else { 25 };
+const MAX_DEPTH: i32 = if DEBUG {3} else if LITE {100} else if BOOK { 100 } else { 25 };
 
 // camera
 const FOCAL_LENGTH: f32 = 1.0;
@@ -96,14 +100,13 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {IMAGE_HEIGHT/4-15} else {0};
+    let start_row = if DEBUG {IMAGE_HEIGHT/2 + 1} else {0};
     let end_row = IMAGE_HEIGHT;
-    //let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
-    let step_y: usize = if DEBUG { (IMAGE_HEIGHT/4).try_into().unwrap() } else { 1 };
+    let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
 
-    let start_col = if DEBUG {IMAGE_WIDTH/2} else {0};
+    let start_col = if DEBUG {IMAGE_WIDTH/3 - 2} else {0};
     let end_col = IMAGE_WIDTH;
-    let step_x: usize = if DEBUG { (IMAGE_WIDTH).try_into().unwrap() } else { 1 };
+    let step_x: usize = if DEBUG { ((IMAGE_WIDTH+10)/3).try_into().unwrap() } else { 1 };
 
     for j in (start_row..end_row).step_by(step_y) {
         for i in (start_col..end_col).step_by(step_x) {
@@ -122,13 +125,18 @@ static mut COLOR_RANGE: (Color, Color) = (Color::white(), Color::black());
 
 fn main() {
 
-    // let tst = Vec3::new([1.0,2.0,3.0]);
-    // println!("Test format v3: {} {:#?} {:?}",tst,tst,tst);
-    // return;
+    // add an outline for debugging
+    let outline = if crate::DEBUG { 1 } else { 0 };
 
-    // allocate dst image (just set length, don't initialize)
-    let mut img: Vec<f32> = Vec::with_capacity(usize::try_from(4*IMAGE_WIDTH*IMAGE_HEIGHT).unwrap());
-    unsafe { img.set_len(img.capacity()); }
+    // allocate dst image
+    let mut img: Vec<f32> =
+        if DEBUG {
+            vec![1.0; usize::try_from(4*(IMAGE_WIDTH+outline*2)*(IMAGE_HEIGHT+outline*2)).unwrap()]
+        } else {
+            Vec::with_capacity(usize::try_from(4*(IMAGE_WIDTH)*(IMAGE_HEIGHT)).unwrap())
+        };
+    // unless debugging, just set length, don't initialize (aka unnecessary optimization :)
+    if !DEBUG { unsafe { img.set_len(img.capacity()); } }
 
     let camera = Camera::init(ASPECT, FOCAL_LENGTH, FOV, IMAGE_HEIGHT, SAMPLE_TYPE);
 
@@ -140,11 +148,10 @@ fn main() {
         let pct_x = px[0] as f32 / (IMAGE_WIDTH-1) as f32;
         let pct_y = px[1] as f32 / (IMAGE_HEIGHT-1) as f32;
 
-        let nsamples = if !DEBUG {SAMPLES_PER_PIXEL} else {1};
+        let nsamples = SAMPLES_PER_PIXEL;
         let mut color = Color::black();
         let rays = camera.gen_rays(pct_x, pct_y, nsamples);
         for ray in rays {
-            //let ray = camera.gen_ray(pct_x, pct_y);
             if DEBUG {
                 println!("[pixel] ({}, {}):", px[0], px[1]);
                 //println!("shooting {}",ray);
@@ -153,7 +160,7 @@ fn main() {
         }
         color /= nsamples as f32;
 
-        if DEBUG { //&& px[0] % IMAGE_WIDTH == 0 {
+        if DEBUG {
             println!("color: {}\n", color);
         }
 
@@ -165,21 +172,28 @@ fn main() {
             }
         }
 
-        // 4 * (current height * image width + current width)
-        let idx = usize::try_from(4*((IMAGE_HEIGHT-1 - px[1]) * IMAGE_WIDTH + px[0])).unwrap();
+        // set pixel
+        let idx = pixel_idx(px, outline);
         img[idx + 0] = color[0];
         img[idx + 1] = color[1];
         img[idx + 2] = color[2];
         img[idx + 3] = color[3];
     }
 
-    //let num_samples: f32 = pixels.len() as f32 * SAMPLES_PER_PIXEL as f32;
     unsafe {
         println!("avg random vec ({} vecs): {}", NUM_RANDOMS, AVG_RANDOM_VEC / NUM_RANDOMS as f32);
         println!("color_range: [{}, {}]", COLOR_RANGE.0, COLOR_RANGE.1);
     }
 
-    io::write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH, IMAGE_HEIGHT);
+    io::write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH+outline*2, IMAGE_HEIGHT+outline*2);
     io::conclude("Goodbye fellow Rustaceans!");
 }
 
+// get pixel index from inner image xy
+fn pixel_idx(px: &[u32; 2], outline: u32) -> usize {
+    let width = if DEBUG && outline > 0 { IMAGE_WIDTH + outline*2 } else { IMAGE_WIDTH };
+    let height = if DEBUG && outline > 0 { IMAGE_HEIGHT + outline*2 } else { IMAGE_HEIGHT };
+
+    // idx = 4 * (current height * image width + current width)
+    usize::try_from(4*((height-1 - px[1]) * width + px[0])).unwrap()
+}

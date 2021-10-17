@@ -104,12 +104,12 @@ impl Intersectable for Jumble {
         if crate::DEBUG {
             println!("{}intersect {{{}}} with {}", indent, self.name, ray);
 
-            println!("{}csys: ",indent);
-            println!("{}",self.csys);
-            println!("{}csys_inv: ",indent);
-            println!("{}",self.csys_inv);
-            println!("{}csys_inv_xpose: ",indent);
-            println!("{}",self.csys_inv_xpose);
+            // println!("{}csys: ",indent);
+            // println!("{}",self.csys);
+            // println!("{}csys_inv: ",indent);
+            // println!("{}",self.csys_inv);
+            // println!("{}csys_inv_xpose: ",indent);
+            // println!("{}",self.csys_inv_xpose);
         }
 
         // transform ray into this Jumble's coordinate system
@@ -143,13 +143,13 @@ impl Intersectable for Jumble {
             // TODO: transform hit point and its normal out of csys
             // remember, normal is trickier
             if crate::DEBUG {
-                println!("{} - pre-xform: {}", indent, hit);
+                //println!("{} - pre-xform: {}", indent, hit);
             }
             hit.point = self.csys.apply_to_point(hit.point);
             hit.normal = self.csys_inv_xpose.apply_to_vector(hit.normal);
 
             if crate::DEBUG {
-                println!("{} - pst-xform: {}", indent, hit);
+                //println!("{} - pst-xform: {}", indent, hit);
             }
             return Shot::Hit;
         }
