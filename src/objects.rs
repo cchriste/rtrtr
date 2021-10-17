@@ -8,8 +8,10 @@ use std::fmt;
 // are `Box<dyn Intersectable>`, which can't be presumed Debug.
 // TODO: try creating mod.Intersectable so this can be Intersectable: mod.Intersectable + Debug
 //pub trait Intersectable: Intersectable + Debug {}
+// FIXME: the solution is to fmt::debug like for dyn Material (works, but useful?)
 
-use crate::utils::*;
+use crate::*;
+use crate::materials::*;
 pub use std::rc::Rc;  // FIXME: purportedly we don't have to `use` in every module, but not working
 
 // hit record
@@ -19,18 +21,25 @@ pub struct HitRecord {
     pub normal: Vec3,
     pub t: f32,
     pub front_face: bool,
+    pub material: Rc<dyn Material>,
 }
 
 impl fmt::Display for HitRecord{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "✔{} p{} n{} ff:{}",
-               self.t, self.point, self.normal, self.front_face)
+        write!(f, "✔{} p{} n{} ff:{} mat:{:?}",
+               self.t, self.point, self.normal, self.front_face, self.material)
     }
 }
 
 impl HitRecord {
     pub fn new() -> Self {
-        HitRecord { t: f32::INFINITY, point: Vec3::zero(), normal: Vec3::zero(), front_face: true }
+        HitRecord {
+            t: f32::INFINITY,
+            point: Vec3::zero(),
+            normal: Vec3::zero(),
+            front_face: true,
+            material: Rc::new(Lambertian::new(Color::white())),
+        }
     }
 }
 
@@ -154,6 +163,7 @@ impl Intersectable for Jumble {
 pub struct Sphere {
     pub center: Vec3,
     pub radius: f32,
+    pub material: Rc<dyn Material>,
 }
 
 impl fmt::Display for Sphere {
@@ -207,6 +217,7 @@ impl Intersectable for Sphere {
         hit.point = point;
         hit.normal = if front_face {normal} else {-normal};
         hit.front_face = front_face;
+        hit.material = Rc::clone(&self.material);
 
         if crate::DEBUG {
             // println!("oc: {}",oc);
@@ -222,10 +233,11 @@ impl Intersectable for Sphere {
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32) -> Sphere {
+    pub fn new(center: Vec3, radius: f32, mat: Rc<dyn Material>) -> Sphere {
         Sphere {
             center,
-            radius
+            radius,
+            material: mat,
         }
     }
 }

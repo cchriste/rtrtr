@@ -81,9 +81,28 @@ impl Mul<f32> for Color {
     }
 }
 
+impl Mul for Color {
+    type Output = Self;
+    fn mul(self, other: Self) -> Self {
+        Self(Vec4::new([self.0[0]* other.0[0],
+                        self.0[1]* other.0[1],
+                        self.0[2]* other.0[2],
+                        self.0[3]* other.0[3]]))
+    }
+}
+
 impl MulAssign<f32> for Color {
     fn mul_assign(&mut self, k: f32) -> () {
         *self = Self(self.0 * k)
+    }
+}
+
+impl MulAssign for Color {
+    fn mul_assign(&mut self, other: Self) -> () {
+        *self = Self(Vec4::new([self.0[0]* other.0[0],
+                                self.0[1]* other.0[1],
+                                self.0[2]* other.0[2],
+                                self.0[3]* other.0[3]]))
     }
 }
 
@@ -253,10 +272,6 @@ impl Vec3 {
         Self { v: [0.0, 0.0, 0.0] }
     }
 
-    pub fn near_zero(&self) -> bool {
-        self.len_squared() < 1.0e-8
-    }
-
     pub const fn new(v: [f32; 3]) -> Self {
         Self { v }
     }
@@ -294,6 +309,10 @@ impl Vec3 {
         self.len_squared().sqrt()
     }
 
+    pub fn near_zero(&self) -> bool {
+        self.len_squared() < 1.0e-8
+    }
+
     pub fn dot(&self, other: Vec3) -> f32 {
         self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2]
     }
@@ -319,6 +338,11 @@ impl Vec3 {
         Vec3 { v: [self.v[0] / magnitude,
                    self.v[1] / magnitude,
                    self.v[2] / magnitude] }
+    }
+
+    // a perfect reflection across the normal
+    pub fn reflect(&self, n: &Vec3) -> Vec3 {
+        *self - 2.0*self.dot(*self) * (*n)
     }
 }
 

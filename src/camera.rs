@@ -1,4 +1,4 @@
-use crate::utils::*;
+use crate::*;
 use rand::{Rng, thread_rng};
 use rand::distributions::Uniform; // generate more evenly distributed random values
 

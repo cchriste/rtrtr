@@ -14,8 +14,8 @@
 
 // <config> /////////////////////////////
 const DEBUG: bool = false;
-const LITE: bool = true;
-const BOOK: bool = false; // try to match Shirley's RTiaW configs
+const LITE: bool = false;
+const BOOK: bool = true; // try to match Shirley's RTiaW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = if BOOK { ReflectionType::NormalPlusPointOnSphere } else { ReflectionType::NormalPlusPointInSphere };
@@ -49,18 +49,17 @@ use std::convert::TryInto;
 use std::f32::consts::PI;
 use std::rc::Rc;
 
-mod utils;
-use crate::utils::*;
-
+mod utils;  // TODO: figure out how to move these to lib.rs where it belongs?
 mod objects;
-use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
-
-mod camera; // FIXME: shouldn't this [be able to] go in camera.rs?
-use crate::camera::*;
-
+mod camera;
 mod scene;
 mod io;
 mod materials;
+
+use crate::utils::*;
+use crate::objects::*;
+use crate::camera::*;
+use materials::LightScatter::{ Attenuated, Absorbed };
 
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
@@ -73,9 +72,12 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
             if crate::DEBUG {
                 println!("{}: {}", crate::MAX_DEPTH-depth, hit);
             }
-            let direction = random_direction(REFL_TYPE, hit.normal);
-            return 0.5*ray_color(&Ray::new(hit.point, direction),
-                                 scene, depth-1, indent_by);
+            match hit.material.scatter(ray, &hit, indent_by) {
+                Attenuated(color, ray) => {
+                    return color*ray_color(&ray, scene, depth-1, indent_by);
+                },
+                Absorbed => return Color::black(),
+            }
         },
         Shot::Miss => {
             if crate::DEBUG {
