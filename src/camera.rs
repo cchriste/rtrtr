@@ -107,13 +107,13 @@ pub enum ReflectionType {
     PointOnHemisphere,
 }
 
-pub fn random_reflection(ref_type: ReflectionType, pt: Vec3, normal: Vec3) -> Vec3 {
+pub fn random_direction(ref_type: ReflectionType, normal: Vec3) -> Vec3 {
     match ref_type {
-        ReflectionType::NormalPlusPointInSphere => return pt + normal + random_point_in_unit_sphere(),
-        ReflectionType::NormalPlusPointOnSphere => return pt + normal + random_unit_vector(),
+        ReflectionType::NormalPlusPointInSphere => return normal + random_point_in_unit_sphere(),
+        ReflectionType::NormalPlusPointOnSphere => return normal + random_unit_vector(),
         ReflectionType::PointOnHemisphere => {
             let vec = random_unit_vector();
-            return if vec.dot(normal) > 0.0 { pt + vec } else { pt - vec };
+            return if vec.dot(normal) > 0.0 { vec } else { -vec };
         },
     }
 }

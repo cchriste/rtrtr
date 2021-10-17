@@ -43,9 +43,7 @@ const PI_2: f32 = PI / 2.0;
 
 ///////////////////////////// </config>
 
-use ferris_says::say;
 use png;
-use std::io::{stdout, BufWriter};
 use std::convert::TryFrom;
 use std::convert::TryInto;
 use std::f32::consts::PI;
@@ -60,6 +58,10 @@ use crate::objects::{Sphere, Jumble, Shot, Intersectable, HitRecord};
 mod camera; // FIXME: shouldn't this [be able to] go in camera.rs?
 use crate::camera::*;
 
+mod scene;
+mod io;
+mod materials;
+
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
     if depth <= 0 { return Color::black(); } // you can only dive so deep...
@@ -71,8 +73,8 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
             if crate::DEBUG {
                 println!("{}: {}", crate::MAX_DEPTH-depth, hit);
             }
-            let target = random_reflection(REFL_TYPE, hit.point, hit.normal);
-            return 0.5*ray_color(&Ray::new(hit.point, target - hit.point),
+            let direction = random_direction(REFL_TYPE, hit.normal);
+            return 0.5*ray_color(&Ray::new(hit.point, direction),
                                  scene, depth-1, indent_by);
         },
         Shot::Miss => {
@@ -129,7 +131,7 @@ fn main() {
     let camera = Camera::init(ASPECT, FOCAL_LENGTH, FOV, IMAGE_HEIGHT, SAMPLE_TYPE);
 
     // build scene
-    let scene = build_scene();
+    let scene = scene::build_scene();
 
     let pixels = get_pixels_to_trace();
     for px in &pixels {
@@ -175,141 +177,7 @@ fn main() {
         println!("color_range: [{}, {}]", COLOR_RANGE.0, COLOR_RANGE.1);
     }
 
-    write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH, IMAGE_HEIGHT);
-    conclude("Goodbye fellow Rustaceans!");
+    io::write_img(r"/tmp/smoothcanvas.png", img, IMAGE_WIDTH, IMAGE_HEIGHT);
+    io::conclude("Goodbye fellow Rustaceans!");
 }
 
-fn conclude(msg: &str) {
-    let stdout = stdout();
-    let message = String::from(msg);
-    let width = message.chars().count();
-
-    let mut writer = BufWriter::new(stdout.lock());
-    say(message.as_bytes(), width, &mut writer).unwrap();
-}
-
-fn write_img(filename: &str, img: Vec<f32>, width: u32, height: u32) {
-    assert!(img.len() == (width * height * 4) as usize); // rgba
-
-    // For reading and opening files
-    use std::path::Path;
-    use std::fs::File;
-
-    let path = Path::new(filename);
-    let file = File::create(path).unwrap();
-    let ref mut w = BufWriter::new(file);
-
-    let mut encoder = png::Encoder::new(w, width, height);
-    encoder.set_color(png::ColorType::Rgba);
-    encoder.set_depth(png::BitDepth::Eight);
-    encoder.set_trns(vec!(0xFFu8, 0xFFu8, 0xFFu8, 0xFFu8));
-    encoder.set_source_gamma(png::ScaledFloat::from_scaled(45455)); // 1.0 / 2.2, scaled by 100000
-    encoder.set_source_gamma(png::ScaledFloat::new(1.0 / 2.2));     // 1.0 / 2.2, unscaled, but rounded
-    let source_chromaticities = png::SourceChromaticities::new(     // Using unscaled instantiation here
-        (0.31270, 0.32900),
-        (0.64000, 0.33000),
-        (0.30000, 0.60000),
-        (0.15000, 0.06000)
-    );
-    encoder.set_source_chromaticities(source_chromaticities);
-
-    // convert floats to chars and apply gamma correction
-    // γ (gamma) = 2.2, color saved = c^(1/γ), estimate γ as 2.0, so color = c^(1/2) = sqrt(c)
-    let mut data: Vec<u8> = Vec::with_capacity(img.len());
-    unsafe { data.set_len(data.capacity()); }
-    for i in 0..img.len() {
-        data[i] = ((256f32-f32::EPSILON) * f32::sqrt(img[i])) as u8; 
-    }
-
-    let mut writer = encoder.write_header().unwrap();
-    writer.write_image_data(&data).unwrap(); // Save
-}
-
-fn build_scene() -> Jumble {
-    // instances of geometry
-    let s1: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5));
-    let s2: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,-100.5,-1.0]), 100.0));
-    let s3: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,-1.0]), 0.5));
-
-    // the main stage
-    let mut scene = Jumble::new();
-    scene.name = "main".to_string();
-
-
-    // test fov is correctly computed
-    let mut fov_test_scene = Jumble::new();
-    fov_test_scene.name = "fov_test".to_string();
-    let radius = (std::f32::consts::PI / 4.0).cos();
-    // NOTE: two ways to declare the same type (the book teaches the first)
-    let sl: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-radius,0.0,-1.0]), radius));
-    let sr = Rc::new(Sphere::new(Vec3::new([radius,0.0,-1.0]), radius)) as Rc<dyn Intersectable>;
-    fov_test_scene.add(Rc::clone(&sl));
-    fov_test_scene.add(Rc::clone(&sr));
-    //scene.add(Rc::new(fov_test_scene) as Rc<dyn Intersectable>);
-
-
-    let mut sub_scene = Jumble::new();
-    sub_scene.name = "sub".to_string();
-    sub_scene.add(Rc::clone(&s1));
-    sub_scene.add(Rc::clone(&s2));
-    scene.add(Rc::new(sub_scene) as Rc<dyn Intersectable>);
-
-
-    let mut squishy_scene = Jumble::new();
-    squishy_scene.name = "squishy".to_string();
-    let mut csys = squishy_scene.csys();
-    let scale = Matrix::scale(Vec3::new([1.5, 0.75, 1.0]));
-    csys *= scale;
-    csys.translate(Vec3::new([0.0,-0.5,0.0]));
-    squishy_scene.set_csys(csys);
-    squishy_scene.add(Rc::clone(&s3));
-    squishy_scene.add(Rc::clone(&s1));
-    squishy_scene.add(Rc::clone(&s2));
-    scene.add(Rc::new(squishy_scene) as Rc<dyn Intersectable>);
-
-
-    let mut sq2 = Jumble::new();
-    sq2.name = "sq2".to_string();
-    let mut csys = sq2.csys();
-
-    let rot = Matrix::rotation(-3.0*PI_4, Axis::Z);
-    //let rot = Matrix::rotation(-PI_4, Axis::Y);
-    //let rot = Matrix::rotation(-PI_4, Axis::X);
-    println!("rot:\n {}", rot);
-    csys *= rot;
-
-    let scale = Matrix::scale(Vec3::new([0.5, 1.25, 1.0]));
-    println!("scale:\n {}", scale);
-    csys *= scale;
-
-    csys.translate(Vec3::new([-1.25, 0.25, 0.0]));
-    println!("csys:\n{}", csys);
-    sq2.set_csys(csys);
-    sq2.add(Rc::clone(&s1));
-    scene.add(Rc::new(sq2) as Rc<dyn Intersectable>);
-
-
-    let mut sq3 = Jumble::new();
-    sq3.name = "sq3".to_string();
-    let mut csys = sq3.csys();
-
-    let rot = Matrix::rotation(-3.0*PI_4, Axis::Z);
-    println!("rot:\n {}", rot);
-    csys *= rot;
-    let rot = Matrix::rotation(-PI_2, Axis::X);
-    println!("rot:\n {}", rot);
-    csys *= rot;
-
-    let scale = Matrix::scale(Vec3::new([0.5, 1.0, 1.1]));
-    println!("scale:\n {}", scale);
-    csys *= scale;
-
-    csys.translate(Vec3::new([1.25,-0.333,-0.25]));
-    println!("csys:\n {}", csys);
-    sq3.set_csys(csys);
-    sq3.add(Rc::clone(&s1));
-    scene.add(Rc::new(sq3) as Rc<dyn Intersectable>);
-
-
-    scene
-}

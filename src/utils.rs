@@ -25,6 +25,8 @@ use std::fmt;
 
 pub enum Axis { X, Y, Z }
 
+#[derive(Debug)]
+#[derive(Clone, Copy)]
 pub struct Color(Vec4);
 
 impl Color {
@@ -249,6 +251,10 @@ use rand::distributions::{Distribution, Uniform};
 impl Vec3 {
     pub const fn zero() -> Self {
         Self { v: [0.0, 0.0, 0.0] }
+    }
+
+    pub fn near_zero(&self) -> bool {
+        self.len_squared() < 1.0e-8
     }
 
     pub const fn new(v: [f32; 3]) -> Self {
