@@ -85,7 +85,7 @@ pub fn random_point_in_unit_sphere() -> Vec3 {
             AVG_RANDOM_VEC += v;
         }
         if v.len_squared() < 1.0 {
-            return v - Vec3::new([0.5,0.5,0.5]);
+            return v;
         }
     }
 }

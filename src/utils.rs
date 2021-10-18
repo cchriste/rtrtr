@@ -279,7 +279,9 @@ impl Vec3 {
     // vector with values in range [0,1)
     pub fn rand() -> Self {
         let mut rng = rand::thread_rng();
-        Self { v: [rng.gen(), rng.gen(), rng.gen()] }
+        Self { v: [rng.gen_range(-1.0..=1.0),
+                   rng.gen_range(-1.0..=1.0),
+                   rng.gen_range(-1.0..=1.0)] }
     }
 
     // return vector of n purportedly well-distributed random Vec3s

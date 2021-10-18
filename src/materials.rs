@@ -45,18 +45,21 @@ impl Material for Lambertian {
 #[derive(Debug)]
 pub struct Shiny {
     pub albedo: Color,
+    pub fuzz: f32,
 }
 
 impl Shiny {
-    pub const fn new(c: Color) -> Self {
-        Self { albedo: c }
+    pub fn new(c: Color, fuzziness: f32) -> Self {
+        Self { albedo: c,
+               fuzz: if fuzziness > 1.0 { 1.0 } else { fuzziness },
+        }
     }
 }
 
 impl Material for Shiny {
     // Shinies always reflect, never absorb
     fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
-        let dir = ray.dir.reflect(&hit.normal);
+        let dir = ray.dir.reflect(&hit.normal) + self.fuzz*random_point_in_unit_sphere();
         if dir.dot(hit.normal) > 0.0 {
             if DEBUG {
                 println!("shiny hit! (reflected ray dir: {})", dir);
