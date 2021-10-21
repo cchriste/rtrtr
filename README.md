@@ -1,8 +1,18 @@
-**rtrtr** - Rusty Ray Tracer
+# Rusty Ray Tracer
+by Cameron Christensen - Fall 2021
 
-Cameron Christensen - Fall 2021
+## Running
 
---
+The parameters... are actually all currently at the top of main.rs. :)
+
+## Images
+
+<p><img src="./journal/07-shiny/10-finally fixed reflections for both materials.png" /></p>
+<p><img src="./journal/05-coordsys/23-not enough skew.png" /></p>
+
+Please see `journal` for more images illustrating its development.
+
+## Story
 
 I started this both to brush up on ray tracing and to learn Rust.
 
@@ -21,3 +31,11 @@ Please keep in mind this is my _very first_ Rust app. The todo list is long and 
 Thanks!
 
 *I didn't realize when I came up with it that my ray tracer name might be familiar to some of us sparker fans already, but if you think about it, rtrt is probably pretty rusty by now as well, so...
+
+## TODO
+
+_neverending lists of the desired, practical or otherwise_
+
+- [ ] Ensure Jumbles' coordinate systems correctly invert normals 
+- [ ] Add Vulkan Rust module for interactivity
+- [ ] put lots of options in a UI (the simple one everyone uses for OpenGL stuff)
