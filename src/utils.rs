@@ -20,8 +20,14 @@ pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
 
+// for debugging convenience
+pub fn rad_to_deg(angle: f32) -> f32 {
+    angle*180.0/std::f32::consts::PI
+}
+
 use std::ops::{Mul, Div, Sub, Add, Neg, AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
 use std::fmt;
+use crate::DEBUG;
 
 pub enum Axis { X, Y, Z }
 
@@ -345,6 +351,42 @@ impl Vec3 {
     // a perfect reflection across the normal
     pub fn reflect(&self, n: &Vec3) -> Vec3 {
         *self - 2.0*self.dot(*n) * (*n)
+    }
+
+    // transmit ray through incident surface with provided normal
+    // refractive indices are etai[ncident] and etat[ransmitted]
+    pub fn refract(&self, n: Vec3, etai: f32, etat: f32) -> Vec3 {
+        if DEBUG {
+            println!("\trefract this vector: {}", self);
+            println!("\tfrom material with etai: {} to etat: {}", etai, etat);
+            println!("\thit normal: {}", n);
+            let theta = (-1.0*n.dot(*self)/self.len()).acos();
+            println!("\t∴ theta_i: {} deg ({} rad)", rad_to_deg(theta), theta);
+        }
+
+        let cos_theta = -1.0*n.dot(*self) / self.len(); // *-1.0 so they both pt in same direction
+        if DEBUG {
+            println!("\tcos_theta: {}", cos_theta);
+        }
+
+        let vt_perp =  etai/etat * (*self + n*cos_theta);
+        if DEBUG {
+            println!("\tvt_perp: {}", vt_perp);
+        }
+
+        let vt_par = -1.0*n * (1.0 - vt_perp.len_squared()).abs().sqrt();
+        if DEBUG {
+            println!("\tvt_par: {}", vt_par);
+            println!("\tvt_par.len(): {}", vt_par.len());
+            println!("\tn.len(): {}", n.len());
+            let vt = vt_perp + vt_par;
+            println!("\tvt = vt_perp + vt_par: {}", vt);
+            println!("\t-1.0*n.dot(vt): {}", -1.0*n.dot(vt));
+            let theta_t = (-1.0*n.dot(vt)/(vt.len()*n.len())).acos();
+            println!("\ttheta_t: {} deg ({} rad)", rad_to_deg(theta_t), theta_t);
+        }
+
+        vt_perp + vt_par
     }
 }
 

@@ -5,8 +5,8 @@
 // NIKE™ tasks:
 // [] use lib.rs
 // [] Rust Programming Language ch 10
-// [] push to GitHub
-// [] add to GitHub.io home page
+// [x] push to GitHub
+// [~] add to GitHub.io home page (still needs some pictures)
 // [] add jittering for more uniform coverage (for gen_rays... where else?)
 //  - NOTE: lens is a circle, pixel is a square
 
@@ -19,8 +19,8 @@
 // <config> /////////////////////////////
 
 const DEBUG: bool = false;
-const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiOW configs
+const LITE: bool = true;
+const BOOK: bool = false; // try to match Shirley's RTiOW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
@@ -67,14 +67,17 @@ use materials::LightScatter::{ Attenuated, Absorbed };
 
 // color of ray(origin, dir)
 fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
+    let indent = vec![' '; indent_by];
+    let indent: String = indent.iter().cloned().collect();
+
     if depth <= 0 { return Color::black(); } // you can only dive so deep...
-    if crate::DEBUG { println!("{}...", crate::MAX_DEPTH-depth); }
+    if crate::DEBUG { println!("{}{}: starting ray_color...", indent, crate::MAX_DEPTH-depth); }
 
     let mut hit = HitRecord::new();
     match scene.intersect(ray, &Range::default(), &mut hit, indent_by) {
         Shot::Hit => {
             if crate::DEBUG {
-                println!("{}: {}", crate::MAX_DEPTH-depth, hit);
+                println!("{}{}: hit! {}", indent, crate::MAX_DEPTH-depth, hit);
             }
             match hit.material.scatter(ray, &hit, indent_by) {
                 Attenuated(color, ray) => {
@@ -85,7 +88,7 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
         },
         Shot::Miss => {
             if crate::DEBUG {
-                println!("{}: MISS", crate::MAX_DEPTH-depth);
+                println!("{}{}: miss.", indent, crate::MAX_DEPTH-depth);
             }
             let unit_dir = ray.dir.normalize();
             let t = 0.5*(unit_dir.y() + 1.0); // vertical percent along viewport

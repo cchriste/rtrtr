@@ -10,8 +10,10 @@ use crate::materials::*;
 pub fn build_scene() -> Jumble {
     // materials
     let matgnd: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.8, 0.8, 0.0])));
-    let matctr: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.7, 0.3, 0.3])));
-    let matleft: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.8, 0.8]), 0.3));
+    // let matctr: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.7, 0.3, 0.3])));
+    // let matleft: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.8, 0.8]), 0.3));
+    let matctr: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.7, 0.3, 0.3]), 0.0, 1.5));
+    let matleft: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.8, 0.8, 0.8]), 0.0, 1.0)); // identity (was super handy for debugging)
     let matright: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.6, 0.2]), 1.0));
 
     // instances of geometry
@@ -30,7 +32,7 @@ pub fn build_scene() -> Jumble {
 
 
     let mut shiny_scene = Jumble::new();
-    scene.name = "shiny".to_string();
+    shiny_scene.name = "shiny".to_string();
     shiny_scene.add(Rc::clone(&s1)); // center
     shiny_scene.add(Rc::clone(&s2)); // ground
     shiny_scene.add(Rc::clone(&s3)); // left
