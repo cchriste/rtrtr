@@ -11,14 +11,17 @@ pub fn build_scene() -> Jumble {
     // materials
     let matgnd: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.8, 0.8, 0.0])));
     // let matctr: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.7, 0.3, 0.3])));
-    // let matleft: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.8, 0.8]), 0.3));
+    let matleft: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.8, 0.8]), 0.7));
     let matctr: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.7, 0.3, 0.3]), 0.0, 1.5));
-    let matleft: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.8, 0.8, 0.8]), 0.0, 1.0)); // identity (was super handy for debugging)
-    let matright: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.6, 0.2]), 1.0));
+    //let matleft: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.8, 0.8, 0.8]), 0.0, 1.5));
+    let matctrbook: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
+    //let matctrbook: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.1, 0.2, 0.5])));
+    //let matleftbook: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
+    let matright: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.6, 0.2]), 0.0));
 
     // instances of geometry
     let s1: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,-1.0]),
-                                                        0.5, Rc::clone(&matctr)));
+                                                        0.5, Rc::clone(&matctrbook)));
     let s2: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,-100.5,-1.0]),
                                                         100.0, Rc::clone(&matgnd)));
     let s3: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-1.0,0.0,-1.0]),

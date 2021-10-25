@@ -118,6 +118,13 @@ impl Transparent {
                eta: if eta < 1.0 { 1.0 } else { eta },
         }
     }
+
+    // Use Schlick's approximation for reflectance
+    fn reflectance(&self, cos_theta: f32, ref_ratio: f32) -> f32 {
+        let mut r0 = (1.0-ref_ratio) / (1.0+ref_ratio);
+        r0 = r0*r0;
+        r0 + (1.0-r0) * (1.0-cos_theta).powi(5)
+    }
 }
 
 impl Material for Transparent {
@@ -130,7 +137,17 @@ impl Material for Transparent {
                      indent, ray, hit, self.albedo, self.eta, self.fuzz);
         }
 
-        let reflect = false; //rand::thread_rng().gen_bool(0.5);
+        // FIXME: add previous material's eta to hit record (assume 1.0 for now)
+        let src_eta = if hit.front_face { 1.0 } else { self.eta };
+        let dst_eta = if hit.front_face { self.eta } else { 1.0 };
+        let refraction_ratio = src_eta / dst_eta;
+        // TODO: instead of dividing by length of ray, just take min(cos_theta,1.0) (in other places, too)
+        let cos_theta = -1.0*hit.normal.dot(ray.dir) / ray.dir.len(); // *-1.0 so both are in same direction
+        let sin_theta = (1.0 - cos_theta*cos_theta).sqrt();
+
+        // reflect if eta_ratio*sin(theta) > 1.0 (can't refract) or [more often if] reflectance is high
+        let reflect = refraction_ratio * sin_theta > 1.0 &&
+                      self.reflectance(cos_theta, refraction_ratio) > rand::thread_rng().gen();
         if reflect {
             let dir = ray.dir.reflect(&hit.normal) + self.fuzz*random_point_in_unit_sphere();
             if DEBUG {
@@ -139,15 +156,22 @@ impl Material for Transparent {
             return Attenuated(self.albedo, Ray::new(hit.point, dir));
         }
         else {
-            // FIXME: add previous material's eta to hit record (assume 1.0 for now)
-            let src_eta = if hit.front_face { 1.0 } else { self.eta };
-            let dst_eta = if hit.front_face { self.eta } else { 1.0 };
-            let dir = ray.dir.refract(hit.normal, src_eta, dst_eta ) + self.fuzz*random_point_in_unit_sphere(); // FIXME: fuzzy refraction seems okay, but same fuzziness as reflection?
+            if DEBUG {
+                println!("\trefract this vector: {}", ray.dir);
+                println!("\tfrom material with etai: {} to etat: {}", src_eta, dst_eta);
+                println!("\thit normal: {}", hit.normal);
+                let theta = cos_theta.acos();
+                println!("\tcos_theta: {}", cos_theta);
+                println!("\t∴ theta_i: {} deg ({} rad)", rad_to_deg(theta), theta);
+            }
+
+            let dir = ray.dir.refract(hit.normal, refraction_ratio, cos_theta)
+                + self.fuzz*random_point_in_unit_sphere(); // TODO: give fuzzy refraction diff fuzz than reflections
             if DEBUG {
                 println!("{} refracted. ray dir: {}", indent, dir);
             }
-            // FIXME: add some albedo for how long it spent in the previous material
-            // FIXME: set hit.eta when it goes through
+            // FIXME: add some albedo for how long (distance) it spent in the previous material
+            // FIXME: set hit.eta when it goes through rather than assuming 1.0
             return Attenuated(self.albedo, Ray::new(hit.point, dir));
         }
     }

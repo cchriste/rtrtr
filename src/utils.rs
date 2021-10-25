@@ -353,23 +353,10 @@ impl Vec3 {
         *self - 2.0*self.dot(*n) * (*n)
     }
 
-    // transmit ray through incident surface with provided normal
-    // refractive indices are etai[ncident] and etat[ransmitted]
-    pub fn refract(&self, n: Vec3, etai: f32, etat: f32) -> Vec3 {
-        if DEBUG {
-            println!("\trefract this vector: {}", self);
-            println!("\tfrom material with etai: {} to etat: {}", etai, etat);
-            println!("\thit normal: {}", n);
-            let theta = (-1.0*n.dot(*self)/self.len()).acos();
-            println!("\t∴ theta_i: {} deg ({} rad)", rad_to_deg(theta), theta);
-        }
-
-        let cos_theta = -1.0*n.dot(*self) / self.len(); // *-1.0 so they both pt in same direction
-        if DEBUG {
-            println!("\tcos_theta: {}", cos_theta);
-        }
-
-        let vt_perp =  etai/etat * (*self + n*cos_theta);
+    // transmit ray through incident surface with provided normal and
+    // refraction_ratio is etai[ncident] / etat[ransmitted]
+    pub fn refract(&self, n: Vec3, refraction_ratio: f32, cos_theta: f32) -> Vec3 {
+        let vt_perp =  refraction_ratio * (*self + n*cos_theta);
         if DEBUG {
             println!("\tvt_perp: {}", vt_perp);
         }
