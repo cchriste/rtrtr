@@ -32,13 +32,17 @@ const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // render
 const SAMPLES_PER_PIXEL: u32 = if DEBUG {1} else if LITE {5} else if BOOK {100} else { 26 };
-const MAX_DEPTH: i32 = if DEBUG {3} else if LITE {100} else if BOOK { 100 } else { 25 };
+const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if BOOK { 100 } else { 25 };
 
 // camera
-const FOCAL_LENGTH: f32 = 1.0;
+const APERTURE: f32 = 1.0;
 const FOV: f32 = 90.0;
 const SAMPLE_TYPE: camera::SampleType = SampleType::PixelRatio;
 //const SAMPLE_TYPE: camera::SampleType = SampleType::Blurry;  // add this to the UI
+//const LOOK_FROM: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
+const LOOK_FROM: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
+const LOOK_AT: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
+const VUP: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
 
 // consts
 const PI_4: f32 = PI / 4.0;
@@ -103,13 +107,13 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {IMAGE_HEIGHT/2 + 1} else {0};
+    let start_row = if DEBUG {2*IMAGE_HEIGHT/3 + 1} else {0};
     let end_row = IMAGE_HEIGHT;
     let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
 
-    let start_col = if DEBUG {IMAGE_WIDTH/3 - 2} else {0};
+    let start_col = if DEBUG {IMAGE_WIDTH/2 - 2} else {0};
     let end_col = IMAGE_WIDTH;
-    let step_x: usize = if DEBUG { ((IMAGE_WIDTH+10)/3).try_into().unwrap() } else { 1 };
+    let step_x: usize = if DEBUG { ((IMAGE_WIDTH+10)).try_into().unwrap() } else { 1 };
 
     for j in (start_row..end_row).step_by(step_y) {
         for i in (start_col..end_col).step_by(step_x) {
@@ -120,10 +124,7 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     pixels
 }
 
-// Added to track random vectors since shadows seem to be on the right just a little more than the left
-static mut AVG_RANDOM_VEC: Vec3 = Vec3::zero(); // maybe remove these two as they have validated random
-static mut NUM_RANDOMS: u32 = 0;   // but... avg random vec (208079 vecs): (0.5003î, 0.5002ĵ, 0.5001k̂)
-
+// FIXME: no need for this to be a static mut used with unsafe, but handy to demonstrate
 static mut COLOR_RANGE: (Color, Color) = (Color::white(), Color::black());
 
 fn main() {
@@ -141,7 +142,8 @@ fn main() {
     // unless debugging, just set length, don't initialize (aka unnecessary optimization :)
     if !DEBUG { unsafe { img.set_len(img.capacity()); } }
 
-    let camera = Camera::init(ASPECT, FOCAL_LENGTH, FOV, IMAGE_HEIGHT, SAMPLE_TYPE);
+    let camera = Camera::init(IMAGE_HEIGHT, ASPECT, APERTURE, SAMPLE_TYPE,
+                              FOV, LOOK_FROM, LOOK_AT, VUP);
 
     // build scene
     let scene = scene::build_scene();
@@ -184,7 +186,6 @@ fn main() {
     }
 
     unsafe {
-        println!("avg random vec ({} vecs): {}", NUM_RANDOMS, AVG_RANDOM_VEC / NUM_RANDOMS as f32);
         println!("color_range: [{}, {}]", COLOR_RANGE.0, COLOR_RANGE.1);
     }
 

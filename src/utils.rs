@@ -31,6 +31,36 @@ use crate::DEBUG;
 
 pub enum Axis { X, Y, Z }
 
+pub fn random_point_in_unit_sphere() -> Vec3 {
+    loop {
+        let v = Vec3::rand();
+        if v.len_squared() < 1.0 {
+            return v;
+        }
+    }
+}
+
+pub fn random_unit_vector() -> Vec3 {
+    random_point_in_unit_sphere().normalize()
+}
+
+pub enum ReflectionType {
+    NormalPlusPointInSphere,
+    NormalPlusPointOnSphere,
+    PointOnHemisphere,
+}
+
+pub fn random_direction(ref_type: ReflectionType, normal: Vec3) -> Vec3 {
+    match ref_type {
+        ReflectionType::NormalPlusPointInSphere => return normal + random_point_in_unit_sphere(),
+        ReflectionType::NormalPlusPointOnSphere => return normal + random_unit_vector(),
+        ReflectionType::PointOnHemisphere => {
+            let vec = random_unit_vector();
+            return if vec.dot(normal) > 0.0 { vec } else { -vec };
+        },
+    }
+}
+
 #[derive(Debug)]
 #[derive(Clone, Copy)]
 pub struct Color(Vec4);
@@ -325,7 +355,7 @@ impl Vec3 {
         self.v[0]*other.v[0] + self.v[1]*other.v[1] + self.v[2]*other.v[2]
     }
 
-    pub fn cross(&self, other: &Vec3) -> Vec3 {
+    pub fn cross(&self, other: Vec3) -> Vec3 {
         //        |  î   ĵ   k̂ |
         // det of | a0  a1  a2 |
         //        | b0  b1  b2 |

@@ -146,8 +146,8 @@ impl Material for Transparent {
         let sin_theta = (1.0 - cos_theta*cos_theta).sqrt();
 
         // reflect if eta_ratio*sin(theta) > 1.0 (can't refract) or [more often if] reflectance is high
-        let reflect = refraction_ratio * sin_theta > 1.0 &&
-                      self.reflectance(cos_theta, refraction_ratio) > rand::thread_rng().gen();
+        let reflect = refraction_ratio * sin_theta > 1.0 ||
+            self.reflectance(cos_theta, refraction_ratio) > rand::thread_rng().gen();
         if reflect {
             let dir = ray.dir.reflect(&hit.normal) + self.fuzz*random_point_in_unit_sphere();
             if DEBUG {

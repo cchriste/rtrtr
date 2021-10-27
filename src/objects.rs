@@ -206,17 +206,15 @@ impl Intersectable for Sphere {
             return Shot::Miss;
         }
 
-        let point = ray.at(t);
+        hit.point = ray.at(t);
 
         // set normal to oppose ray direction and indicate whether it's a
         // hit against front face or back face of geometry
-        let normal = (ray.at(t) - self.center).normalize(); // TODO: wait to do this for lighting?
-        let front_face = if dot(normal, ray.dir) < 0.0 {true} else {false};
+        let normal = (hit.point - self.center) / self.radius; // ** negative radius inverts normal trick **
+        hit.front_face = if dot(normal, ray.dir) < 0.0 {true} else {false};
 
         hit.t = t;
-        hit.point = point;
-        hit.normal = if front_face {normal} else {-normal};
-        hit.front_face = front_face;
+        hit.normal = if hit.front_face {normal} else {-normal};
         hit.material = Rc::clone(&self.material);
 
         if crate::DEBUG {
