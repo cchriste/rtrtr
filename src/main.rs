@@ -18,9 +18,9 @@
 
 // <config> /////////////////////////////
 
-const DEBUG: bool = false;
+const DEBUG: bool = true;
 const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiOW configs
+const BOOK: bool = false; // try to match Shirley's RTiOW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI

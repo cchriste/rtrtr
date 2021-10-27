@@ -15,12 +15,13 @@ pub enum LightScatter {
 // interaction of [a ray of] light with a material
 pub trait Material {
     fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter;
+    fn log(&self) -> String;
 }
 
 use core::fmt::Debug;
 impl Debug for dyn Material {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Material (???)") //how do I add details? Maybe impl Debug for them?)")
+        write!(f, "{}", self.log())
     }
 }
 
@@ -36,6 +37,10 @@ impl Lambertian {
 }
 
 impl Material for Lambertian {
+    fn log(&self) -> String {
+        format!("⊕ Lambertian c: {}", self.albedo)
+    }
+
     // Lambertians always scatter, never absorb
     fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
         let indent = vec![' '; indent_by];
@@ -53,7 +58,6 @@ impl Material for Lambertian {
     }
 }
 
-#[derive(Debug)]
 pub struct Shiny {
     pub albedo: Color,
     pub fuzz: f32,
@@ -68,6 +72,11 @@ impl Shiny {
 }
 
 impl Material for Shiny {
+    fn log(&self) -> String {
+        format!("⊕ Shiny c: {} fuzz:{}",
+                self.albedo, self.fuzz)
+    }
+
     // Shinies always reflect, never absorb
     fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
         let indent = vec![' '; indent_by];
@@ -90,26 +99,11 @@ impl Material for Shiny {
     }
 }
 
-//#[derive(Debug)]
 pub struct Transparent {
     pub albedo: Color,
     pub fuzz: f32,
     pub eta: f32,
 }
-
-// none of these are working... too tired to figure it out right now
-// impl fmt::Display for Transparent {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "⊕ Transparent c:{} η:{} fuzz:{}",
-//                self.albedo, self.eta, self.fuzz)
-//     }
-// }
-// impl Debug for Transparent {
-//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-//         write!(f, "⊕ Transparent c:{} η:{} fuzz:{}",
-//                self.albedo, self.eta, self.fuzz)
-//     }
-// }
 
 impl Transparent {
     pub fn new(c: Color, fuzziness: f32, eta: f32) -> Self {
@@ -128,6 +122,11 @@ impl Transparent {
 }
 
 impl Material for Transparent {
+    fn log(&self) -> String{
+        format!("⊕ Transparent c: {} η:{} fuzz:{}",
+                self.albedo, self.eta, self.fuzz)
+    }
+
     // reflect or refract, just pick one
     fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
         let indent = vec![' '; indent_by];
