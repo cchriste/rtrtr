@@ -20,7 +20,7 @@
 
 const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiOW configs
+const BOOK: bool = false; // try to match Shirley's RTiOW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
@@ -36,14 +36,21 @@ const SAMPLES_PER_PIXEL: u32 = if DEBUG {1} else if LITE {5} else if BOOK {100} 
 const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if BOOK { 100 } else { 25 };
 
 // camera
-const APERTURE: f32 = 1.0;
-const FOV: f32 = 20.0;
-const SAMPLE_TYPE: camera::SampleType = SampleType::PixelRatio;
-//const SAMPLE_TYPE: camera::SampleType = SampleType::Blurry;  // add this to the UI
-const LOOK_FROM: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
-//const LOOK_FROM: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
-const LOOK_AT: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
-const VUP: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
+fn setup_camera() -> Camera {
+    let aperture: f32 = 0.001; // a tiny aperture simulates a point camera
+    let fov: f32 = 20.0;
+    let sample_type: camera::SampleType = SampleType::PixelRatio;
+    //let sample_type: camera::SampleType = SampleType::Blurry;  // add this to the UI
+    //let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
+    let look_from: Vec3 = Vec3::new([3.0, 3.0, 2.0]);
+    //let look_from: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
+    let look_at: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
+    let vup: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
+    let dist_to_focus: f32 = (look_at - look_from).len();
+
+    Camera::init(IMAGE_HEIGHT, ASPECT, aperture, sample_type,
+                 fov, look_from, look_at, vup, dist_to_focus)
+}
 
 // consts
 const PI_4: f32 = PI / 4.0;
@@ -143,8 +150,7 @@ fn main() {
     // unless debugging, just set length, don't initialize (aka unnecessary optimization :)
     if !DEBUG { unsafe { img.set_len(img.capacity()); } }
 
-    let camera = Camera::init(IMAGE_HEIGHT, ASPECT, APERTURE, SAMPLE_TYPE,
-                              FOV, LOOK_FROM, LOOK_AT, VUP);
+    let mut camera = setup_camera(); // FIXME? camera stores an rng that mutates when used
 
     // build scene
     let scene = scene::build_scene();

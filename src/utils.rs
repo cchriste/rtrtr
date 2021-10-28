@@ -40,6 +40,15 @@ pub fn random_point_in_unit_sphere() -> Vec3 {
     }
 }
 
+pub fn random_point_in_unit_disc() -> Vec3 {
+    loop {
+        let v = Vec2::rand();
+        if v.len_squared() < 1.0 {
+            return Vec3::new([v[0], v[1], 0.0]);
+        }
+    }
+}
+
 pub fn random_unit_vector() -> Vec3 {
     random_point_in_unit_sphere().normalize()
 }
