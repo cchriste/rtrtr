@@ -18,15 +18,16 @@
 
 // <config> /////////////////////////////
 
-const DEBUG: bool = true;
+const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = false; // try to match Shirley's RTiOW configs
+const BOOK: bool = true; // try to match Shirley's RTiOW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
+//const ASPECT: f32 = 3.0/2.0;  // final image from book
 const IMAGE_WIDTH: u32 = if BOOK { 400 } else { 200 };
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
@@ -36,11 +37,11 @@ const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if BOOK { 100 } else
 
 // camera
 const APERTURE: f32 = 1.0;
-const FOV: f32 = 90.0;
+const FOV: f32 = 20.0;
 const SAMPLE_TYPE: camera::SampleType = SampleType::PixelRatio;
 //const SAMPLE_TYPE: camera::SampleType = SampleType::Blurry;  // add this to the UI
-//const LOOK_FROM: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
-const LOOK_FROM: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
+const LOOK_FROM: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
+//const LOOK_FROM: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
 const LOOK_AT: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
 const VUP: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
 

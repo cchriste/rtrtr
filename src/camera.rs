@@ -35,15 +35,17 @@ impl Camera {
         let viewport_width = aspect_ratio * viewport_height;
         let dist = (lf - la).len();
         let w = (lf - la).normalize();  // "backwards" so that w still points behind the camera
-        let u = vup.normalize().cross(w);
+        let u = vup.normalize().cross(w).normalize(); // even though both unit must normalize bc not perp
         let v = w.cross(u);
-        let right = u * dist * viewport_width;
-        let up = v * dist * viewport_height;
-        let botleft = lf - right/2.0 - up/2.0 - w*dist;
+        let right = u * viewport_width;//u * dist * viewport_width;
+        let up = v * viewport_height;//v * dist * viewport_height;
+        let botleft = lf - right/2.0 - up/2.0 - w;//*dist;
         let blur = Camera::get_blurriness(sample_type,
                                           aspect_ratio*image_height as f32, image_height as f32,
                                           viewport_width, viewport_height);
+        println!("dist: {}",dist);
         println!("u: {}\nv: {}\nw: {}",u,v,w);
+        println!("right: {}\nup: {}",right, up);
         Camera { aperture,
                  origin: lf,
                  u,v,w,
@@ -64,12 +66,11 @@ impl Camera {
         // actually, use this: https://docs.rs/rand/0.5.0/rand/distributions/uniform/struct.Uniform.html
         let mut ret = Vec::<Ray>::new();
         for _ in 0..n {
-            let o: Vec3 = if DEBUG { self.origin } else { self.origin +
-                                                          self.u * self.aperture*rng.sample(unitx) +
-                                                          self.v * self.aperture*rng.sample(unity) };
+            // let o: Vec3 = if DEBUG { self.origin } else { self.origin +
+            //                                               self.u * self.aperture*rng.sample(unitx) +
+            //                                               self.v * self.aperture*rng.sample(unity) };
             let o: Vec3 = self.origin; // debug
             let px: [f32; 2] = if DEBUG { [0.5, 0.5] } else { [rng.sample(unitx), rng.sample(unity)] };
-            //let px: [f32; 2] = [0.5, 0.5]; // debug
             let dir =
                 (self.botleft - o +
                  self.right*(pct_x + px[0]*self.blur[0]) +
@@ -87,9 +88,9 @@ impl Camera {
 
         let blurriness = match ref_type {
             SampleType::PixelRatio => {
-                // blurriness: [0.0050251256, 0.009009009] for IMAGE_HEIGHT = 200
+                // blurriness: [0.0050223214, 0.008928572] for IMAGE_HEIGHT = 200
                 Vec2::new([1.0/image_width,
-                           1.0/image_height])
+                           1.0/image_height]) // TODO: find the next issue here
             },
             SampleType::Blurry |
             SampleType::Blurrier => {
@@ -99,10 +100,8 @@ impl Camera {
                            viewport_height/image_height])
             },
         };
+        println!("pixelsize: {:?}", blurriness);
 
-        if crate::DEBUG {
-            println!("pixelsize: {:?}", blurriness);
-        }
         blurriness
     }
 }

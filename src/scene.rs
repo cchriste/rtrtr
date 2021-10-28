@@ -27,7 +27,7 @@ pub fn build_scene() -> Jumble {
 
     let matright: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.6, 0.2]), 0.0));
 
-    /*
+/*
     // verify vfov working (one of the best things of the book are its tests)
     let radius = PI_4.cos();
     let matleft: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.0, 0.0, 0.1])));
@@ -48,7 +48,7 @@ pub fn build_scene() -> Jumble {
                                                          Rc::clone(&matctrbook)));
     let lout: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-1.0,0.0,-1.0]), 0.5,
                                                         Rc::clone(&matleftbook)));
-    let lin: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-1.0,0.0,-1.0]), -0.40,
+    let lin: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-1.0,0.0,-1.0]), -0.45,
                                                         Rc::clone(&matleftbook)));
     let r: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([1.0,0.0,-1.0]), 0.5,
                                                         Rc::clone(&matright)));
