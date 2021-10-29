@@ -38,12 +38,12 @@ const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if BOOK { 100 } else
 
 // camera
 fn setup_camera() -> Camera {
-    let aperture: f32 = 2.0; //0.001; // a tiny aperture simulates a point camera
-    let fov: f32 = 20.0;
+    let aperture: f32 = 0.00001; // a tiny aperture simulates a point camera
+    let fov: f32 = 90.0;
     let sample_type: camera::SampleType = SampleType::PixelRatio;
     //let sample_type: camera::SampleType = SampleType::Blurry;  // add this to the UI
-    //let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
-    let look_from: Vec3 = Vec3::new([3.0, 3.0, 2.0]);
+    let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
+    //let look_from: Vec3 = Vec3::new([3.0, 3.0, 2.0]);
     //let look_from: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
     let look_at: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
     let vup: Vec3 = Vec3::new([0.0, 1.0, 0.0]);

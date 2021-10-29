@@ -7,8 +7,9 @@ The parameters... are actually all currently at the top of main.rs. :)
 
 ## Images
 
-<p><img src="./journal/08-clear/18-glass is clearly transparent and reflective.png" /></p>
-<p><img src="./journal/05-coordsys/23-not enough skew.png" /></p>
+<p><img src="./journal/10-camera2/35-depth of field without sphere shadows.png" /></p>
+<p><img src="./journal/10-camera2/34a-far far away.png" /></p>
+<p><img src="./journal/10-camera2/34b-finally.png" /></p>
 
 Please see `journal` for more images illustrating its development.
 
