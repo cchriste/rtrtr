@@ -19,6 +19,7 @@ pub fn build_scene() -> Jumble {
     // let matctr: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.7, 0.3, 0.3])));
     //let matctr: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.7, 0.3, 0.3]), 0.0, 1.5));
     let matctrbook: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.1, 0.2, 0.5])));
+    //let matctrbook: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([1.0,1.0,1.0])));
     //let matctrbook: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
 
     //let matleft: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.8, 0.8, 0.8]), 0.0, 1.5));

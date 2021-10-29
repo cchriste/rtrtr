@@ -26,7 +26,7 @@ It's overwhelming to realize how much there is to learn, but comforting to know 
 
 One of the other things I'm starting to learn on the side is Vulkan, and there's a Rust library for this. It's somewhere near the top of my list to try it out.
 
-Please keep in mind this is my _very first_ Rust app. The todo list is long and fraught with peril (I just wanted to say that). My creative spirit and professional organization hopefully permeate this. One of the ways I've enjoyed going back through the code is commit by commit--someone could probably make a Processing sketch for this--and I have a journal directory for every phase of the project. Sometimes I cleanup, other times I add something. I've so far intentionally avoided looking at [other RTiOW ray tracers](https://github.com/nya3jp/raytracing) [built](https://github.com/takahirox/wgpu-rust-renderer) [with Rust](https://github.com/Twinklebear/tray_rust), since I want to [re-]learn and trying is one of the best ways to do so, but pretty soon I'll take a peek to see the way others implement things.
+Please keep in mind this is my _very first_ Rust app. The todo list is long and fraught with peril (I just wanted to say that). My creative spirit and professional organization hopefully permeate this. One of the ways I've enjoyed going back through the code is commit by commit--someone could probably make a Processing sketch for this--and I have a journal directory for every phase of the project. Sometimes I cleanup, other times I add something. I've so far intentionally avoided looking at [other](https://github.com/CircArgs/ray-tracer-weekend) [RTiOW ray tracers](https://github.com/nya3jp/raytracing) [built](https://github.com/takahirox/wgpu-rust-renderer) [with Rust](https://github.com/Twinklebear/tray_rust), since I want to [re-]learn and trying is one of the best ways to do so, but pretty soon I'll take a peek to see the way others implement things.
 
 Thanks!
 
@@ -39,3 +39,8 @@ _neverending lists of the desired, practical or otherwise_
 - [ ] Ensure Jumbles' coordinate systems correctly invert normals 
 - [ ] Add Vulkan Rust module for interactivity
 - [ ] put lots of options in a UI (the simple one everyone uses for OpenGL stuff)
+- [ ] make some bouncy spheres using squishy Jumbles
+
+## P.S.
+
+Normally I wouldn't commit "journal" pics, but I like the way it further illustrates my development/debugging process, which is one of the sub-goals of writing this. I'll extract the source without these pics into a fresh repo soon and find a better place to store them.

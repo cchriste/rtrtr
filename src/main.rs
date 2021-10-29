@@ -20,10 +20,11 @@
 
 const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = false; // try to match Shirley's RTiOW configs
+const BOOK: bool = true; // try to match Shirley's RTiOW configs
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
+//const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointInSphere; // add this to the [Vulkan] UI
 
 // screen
 const ASPECT: f32 = 16.0/9.0;  // width/height
@@ -37,7 +38,7 @@ const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if BOOK { 100 } else
 
 // camera
 fn setup_camera() -> Camera {
-    let aperture: f32 = 0.001; // a tiny aperture simulates a point camera
+    let aperture: f32 = 2.0; //0.001; // a tiny aperture simulates a point camera
     let fov: f32 = 20.0;
     let sample_type: camera::SampleType = SampleType::PixelRatio;
     //let sample_type: camera::SampleType = SampleType::Blurry;  // add this to the UI
@@ -115,11 +116,13 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {2*IMAGE_HEIGHT/3 + 1} else {0};
+    let start_row = if DEBUG {IMAGE_HEIGHT/3 + 4} else {0};
+    //let start_row = IMAGE_HEIGHT/2;
     let end_row = IMAGE_HEIGHT;
+    //let end_row = IMAGE_HEIGHT/2+1;
     let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
 
-    let start_col = if DEBUG {IMAGE_WIDTH/2 - 2} else {0};
+    let start_col = if DEBUG {2*IMAGE_WIDTH/5 - 6} else {0};
     let end_col = IMAGE_WIDTH;
     let step_x: usize = if DEBUG { ((IMAGE_WIDTH+10)).try_into().unwrap() } else { 1 };
 

@@ -54,7 +54,7 @@ impl Material for Lambertian {
             println!("{} reflected ray dir: {})", indent, dir);
         }
         Attenuated(self.albedo,
-                   Ray::new(hit.point, if dir.near_zero() { hit.normal } else { dir }))
+                   Ray::new(hit.point, if dir.near_zero() { hit.normal } else { dir.normalize() }))
     }
 }
 
@@ -90,7 +90,7 @@ impl Material for Shiny {
             if DEBUG {
                 println!("{} reflected ray dir: {}", indent, dir);
             }
-            return Attenuated(self.albedo, Ray::new(hit.point, dir));
+            return Attenuated(self.albedo, Ray::new(hit.point, dir.normalize()));
         }
         if DEBUG {
             println!("{} absorbed? must've been an abnormal day", indent);
@@ -114,8 +114,8 @@ impl Transparent {
     }
 
     // Use Schlick's approximation for reflectance
-    fn reflectance(&self, cos_theta: f32, ref_ratio: f32) -> f32 {
-        let mut r0 = (1.0-ref_ratio) / (1.0+ref_ratio);
+    fn reflectance(&self, cos_theta: f32, src_eta: f32, dst_eta: f32) -> f32 {
+        let mut r0 = (src_eta - dst_eta) / (src_eta + dst_eta);
         r0 = r0*r0;
         r0 + (1.0-r0) * (1.0-cos_theta).powi(5)
     }
@@ -140,19 +140,17 @@ impl Material for Transparent {
         let src_eta = if hit.front_face { 1.0 } else { self.eta };
         let dst_eta = if hit.front_face { self.eta } else { 1.0 };
         let refraction_ratio = src_eta / dst_eta;
-        // TODO: instead of dividing by length of ray, just take min(cos_theta,1.0) (in other places, too)
-        let cos_theta = -1.0*hit.normal.dot(ray.dir) / ray.dir.len(); // *-1.0 so both are in same direction
+        let cos_theta = (-1.0*hit.normal.dot(ray.dir)).min(1.0); // *-1.0 so both in same direction
         let sin_theta = (1.0 - cos_theta*cos_theta).sqrt();
-
-        // reflect if eta_ratio*sin(theta) > 1.0 (can't refract) or [more often if] reflectance is high
         let reflect = refraction_ratio * sin_theta > 1.0 ||
-            self.reflectance(cos_theta, refraction_ratio) > rand::thread_rng().gen();
+            self.reflectance(cos_theta, src_eta, dst_eta) > rand::thread_rng().gen();
+
         if reflect {
             let dir = ray.dir.reflect(&hit.normal) + self.fuzz*random_point_in_unit_sphere();
             if DEBUG {
                 println!("{} reflected. ray dir: {}", indent, dir);
             }
-            return Attenuated(self.albedo, Ray::new(hit.point, dir));
+            return Attenuated(self.albedo, Ray::new(hit.point, dir.normalize()));
         }
         else {
             if DEBUG {
@@ -167,7 +165,7 @@ impl Material for Transparent {
             let dir = ray.dir.refract(hit.normal, refraction_ratio, cos_theta)
                 + self.fuzz*random_point_in_unit_sphere(); // TODO: give fuzzy refraction diff fuzz than reflections
             if DEBUG {
-                println!("{} refracted. ray dir: {}", indent, dir);
+                println!("{} refracted. ray dir: {}", indent, dir.normalize());
             }
             // FIXME: add some albedo for how long (distance) it spent in the previous material
             // FIXME: set hit.eta when it goes through rather than assuming 1.0

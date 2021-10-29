@@ -184,6 +184,10 @@ impl Intersectable for Sphere {
         let half_b = oc.dot(ray.dir);
         let c = oc.len_squared() - self.radius*self.radius;
         let discriminant = half_b*half_b - a*c;
+        if DEBUG {
+            println!("rng: {:?}", rng);
+            println!("hit.t: {}", hit.t);
+        }
         if discriminant < 0.0 {
             if crate::DEBUG {
                 println!("{} - miss", indent);
@@ -199,6 +203,10 @@ impl Intersectable for Sphere {
         //  - if at least one > rng.min: use the larger
         //  - check selected is inside range
         let t = if t0 > rng.min && t1 > rng.min { t0.min(t1) } else { t0.max(t1) };
+        if DEBUG {
+            println!("t: {}", t); // what if t is behind ray origin??
+            println!("t0: {}, t1: {}", t0, t1);
+        }
         if t.outside(&rng) || t > hit.t {
             if crate::DEBUG {
                 println!("{} - miss", indent);
