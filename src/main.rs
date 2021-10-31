@@ -21,33 +21,34 @@
 const DEBUG: bool = false;
 const LITE: bool = false;
 const BOOK: bool = true; // try to match Shirley's RTiOW configs
+const FINAL: bool = true; // match RTiOW final image
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
 //const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointInSphere; // add this to the [Vulkan] UI
 
 // screen
-const ASPECT: f32 = 16.0/9.0;  // width/height
-//const ASPECT: f32 = 3.0/2.0;  // final image from book
-const IMAGE_WIDTH: u32 = if BOOK { 400 } else { 200 };
+const ASPECT: f32 = if FINAL { 3.0/2.0 } else { 16.0/9.0 };  // width/height
+const IMAGE_WIDTH: u32 = if FINAL && BOOK { 1200 } else if BOOK { 400 } else { 200 };
 const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f32 / ASPECT) as u32;
 
 // render
-const SAMPLES_PER_PIXEL: u32 = if DEBUG {1} else if LITE {5} else if BOOK {100} else { 26 };
-const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if BOOK { 100 } else { 25 };
+const SAMPLES_PER_PIXEL: u32 = if DEBUG {1} else if LITE {5} else if FINAL && BOOK {500} else if BOOK {100} else {26};
+const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if FINAL && BOOK { 50 } else if BOOK { 100 } else { 25 };
 
 // camera
 fn setup_camera() -> Camera {
-    let aperture: f32 = 0.00001; // a tiny aperture simulates a point camera
-    let fov: f32 = 90.0;
+    let aperture: f32 = 0.1; // a tiny aperture simulates a point camera
+    let fov: f32 = 20.0;
     let sample_type: camera::SampleType = SampleType::PixelRatio;
     //let sample_type: camera::SampleType = SampleType::Blurry;  // add this to the UI
-    let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
+    //let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
+    let look_from: Vec3 = Vec3::new([13.0, 2.0, 3.0]);
     //let look_from: Vec3 = Vec3::new([3.0, 3.0, 2.0]);
-    //let look_from: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
-    let look_at: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
+    let look_at: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
+    //let look_at: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
     let vup: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
-    let dist_to_focus: f32 = (look_at - look_from).len();
+    let dist_to_focus: f32 = if FINAL { 10.0 } else { (look_at - look_from).len() };
 
     Camera::init(IMAGE_HEIGHT, ASPECT, aperture, sample_type,
                  fov, look_from, look_at, vup, dist_to_focus)
@@ -156,7 +157,8 @@ fn main() {
     let mut camera = setup_camera(); // FIXME? camera stores an rng that mutates when used
 
     // build scene
-    let scene = scene::build_scene();
+    //let scene = scene::build_scene();
+    let scene = scene::build_rtiow_final_scene();
 
     let pixels = get_pixels_to_trace();
     for px in &pixels {

@@ -84,6 +84,11 @@ impl Color {
         Self(Vec4::new(v))
     }
 
+    pub fn rand() -> Self {
+        let mut rng = rand::thread_rng();
+        Self(Vec4::new([rng.gen(), rng.gen(), rng.gen(), 1.0]))
+    }
+
     // TODO: functions to apply gamma, return as vec[u8; 4] (though likely u32 but range of u8)
 
     pub const fn black() -> Self { Self(Vec4::new([0.0, 0.0, 0.0, 1.0])) }

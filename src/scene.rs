@@ -6,6 +6,7 @@
 
 use crate::*;
 use crate::materials::*;
+use rand::{Rng, thread_rng};
 
 pub fn build_scene() -> Jumble {
     // the main stage
@@ -156,3 +157,57 @@ pub fn build_scene() -> Jumble {
     scene
 }
 
+pub fn build_rtiow_final_scene() -> Jumble {
+    // the main stage
+    let mut scene = Jumble::new();
+    scene.name = "main".to_string();
+
+    // rng
+    let mut rng = rand::thread_rng();
+
+    // glass
+    let glass: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
+
+    // ground
+    let matgnd: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.5, 0.5, 0.5])));
+    scene.add(Rc::new(Sphere::new(Vec3::new([0.0,-1000.0,0.0]), 1000.0, Rc::clone(&matgnd))));
+
+    // marbles
+    for a in -11..11 {
+        for b in -11..11 {
+            let choose_mat: f32 = rng.gen();
+            let center = Vec3::new([a as f32 + 0.9*rng.gen::<f32>(),
+                                    0.2,
+                                    b as f32 + 0.9*rng.gen::<f32>()]);
+
+            if (center - Vec3::new([4.0, 0.2, 0.0])).len() > 0.9 {
+                if choose_mat < 0.8 {
+                    // diffuse
+                    let albedo = Color::rand() * Color::rand();
+                    let mat: Rc<dyn Material> = Rc::new(Lambertian::new(albedo));
+                    scene.add(Rc::new(Sphere::new(center, 0.2, Rc::clone(&mat))));
+                } else if choose_mat < 0.95 {
+                    // metal
+                    let albedo = Color::rand() / 2.0 + Color::new([0.5, 0.5, 0.5]);
+                    let fuzz = rng.gen_range(0.0..=0.5);
+                    let mat: Rc<dyn Material> = Rc::new(Shiny::new(albedo, fuzz));
+                    scene.add(Rc::new(Sphere::new(center, 0.2, Rc::clone(&mat))));
+                } else {
+                    // glass
+                    scene.add(Rc::new(Sphere::new(center, 0.2, Rc::clone(&glass))));
+                }
+            }
+        }
+    }
+
+    // boulders
+    scene.add(Rc::new(Sphere::new(Vec3::new([0.0, 1.0, 0.0]), 1.0, Rc::clone(&glass))));
+
+    let mat: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.4, 0.2, 0.1])));
+    scene.add(Rc::new(Sphere::new(Vec3::new([-4.0, 1.0, 0.0]), 1.0, Rc::clone(&mat))));
+
+    let mat: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.4, 0.2, 0.1]), 0.0));
+    scene.add(Rc::new(Sphere::new(Vec3::new([4.0, 1.0, 0.0]), 1.0, Rc::clone(&mat))));
+
+    return scene;
+}
