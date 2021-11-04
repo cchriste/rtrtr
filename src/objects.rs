@@ -54,7 +54,7 @@ pub trait Intersectable {
     // - Range is global allowed distance along ray
     // - HitRecord is updated when there is an intersection
     // - indent is used to print debugging output
-    fn intersect(&self, ray: &Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot;
+    fn intersect(&self, ray: Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot;
 }
 
 // buncha stuff that can be intersected, including itself
@@ -62,9 +62,10 @@ pub trait Intersectable {
 pub struct Jumble {
     pub name: String,
     arr: Vec<Rc<dyn Intersectable>>,
-    csys: Matrix,
-    csys_inv: Matrix,
-    csys_inv_xpose: Matrix,
+    csys: CoordSys,
+    // csys: Matrix,
+    // csys_inv: Matrix,
+    // csys_inv_xpose: Matrix,
     //bbox: AABoundingBox, //TODO
 }
 
@@ -73,13 +74,14 @@ impl Jumble {
         Jumble {
             name: String::from("anon"),
             arr: Vec::new(),
-            csys: Matrix::identity(),
-            csys_inv: Matrix::identity().inverse(),
-            csys_inv_xpose: Matrix::identity().inverse().transpose(),
+            csys: CoordSys::identity(),
+            // Matrix::identity(),
+            // csys_inv: Matrix::identity().inverse(),
+            // csys_inv_xpose: Matrix::identity().inverse().transpose(),
         }
     }
 
-    pub fn csys(&self) -> Matrix {
+    pub fn csys(&self) -> CoordSys {
         self.csys
     }
 
@@ -87,17 +89,15 @@ impl Jumble {
         self.arr.push(obj)
     }
 
-    pub fn set_csys(&mut self, csys: Matrix) {
+    pub fn set_csys(&mut self, csys: CoordSys) {
         self.csys = csys;
-        self.csys_inv = self.csys.inverse();
-        self.csys_inv_xpose = self.csys_inv.transpose();
     }
 
     //fn update_bbox() {... // TODO
 }
 
 impl Intersectable for Jumble {
-    fn intersect(&self, ray: &Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot {
+    fn intersect(&self, ray: Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot {
         // ugh: this is two big lines just to indent by a few spaces; TODO: macro me?
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
@@ -113,7 +113,7 @@ impl Intersectable for Jumble {
         }
 
         // transform ray into this Jumble's coordinate system
-        let ray = ray.transform(&self.csys_inv);
+        let ray = self.csys.ray_in(ray);
         if crate::DEBUG {
             println!("{} - transformed {}", indent, ray);
         }
@@ -125,14 +125,14 @@ impl Intersectable for Jumble {
                 //println!("obj: {:?}", obj); // can just be too much (e.g., array of objects)
                 // println!("{}rng: {:?}", indent, rng);
             }
-            match obj.intersect(&ray, rng, hit, indent_by+2) {
+            match obj.intersect(ray, rng, hit, indent_by+2) {
                 Shot::Hit => { // NOTE: a long-winded way to say `hit_something |= intersect()
                     hit_something = true;
                     // if crate::DEBUG {
                     //     println!("{} - hit", indent);
                     // }
                 },
-                Shot::Miss => { 
+                Shot::Miss => {
                     // if crate::DEBUG {
                     //     println!("{} - miss",indent);
                     // }
@@ -140,16 +140,15 @@ impl Intersectable for Jumble {
             }
         }
         if hit_something {
-            // TODO: transform hit point and its normal out of csys
-            // remember, normal is trickier
+            // transform hit point and its normal out of csys
             if crate::DEBUG {
-                //println!("{} - pre-xform: {}", indent, hit);
+                println!("{} - pre-xform: {}", indent, hit);
             }
-            hit.point = self.csys.apply_to_point(hit.point);
-            hit.normal = self.csys_inv_xpose.apply_to_vector(hit.normal);
+            hit.point = self.csys.point_out(hit.point);
+            hit.normal = self.csys.normal_out(hit.normal);
 
             if crate::DEBUG {
-                //println!("{} - pst-xform: {}", indent, hit);
+                 println!("{} - pst-xform: {}", indent, hit);
             }
             return Shot::Hit;
         }
@@ -173,7 +172,7 @@ impl fmt::Display for Sphere {
 }
 
 impl Intersectable for Sphere {
-    fn intersect(&self, ray: &Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot {
+    fn intersect(&self, ray: Ray, rng: &Range, hit: &mut HitRecord, indent_by: usize) -> Shot {
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
         if crate::DEBUG {

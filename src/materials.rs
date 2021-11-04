@@ -14,7 +14,7 @@ pub enum LightScatter {
 
 // interaction of [a ray of] light with a material
 pub trait Material {
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter;
+    fn scatter(&self, ray: Ray, hit: &HitRecord, indent_by: usize) -> LightScatter;
     fn log(&self) -> String;
 }
 
@@ -42,7 +42,7 @@ impl Material for Lambertian {
     }
 
     // Lambertians always scatter, never absorb
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
+    fn scatter(&self, ray: Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
         if DEBUG {
@@ -78,7 +78,7 @@ impl Material for Shiny {
     }
 
     // Shinies always reflect, never absorb
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
+    fn scatter(&self, ray: Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
         if DEBUG {
@@ -128,7 +128,7 @@ impl Material for Transparent {
     }
 
     // reflect or refract, just pick one
-    fn scatter(&self, ray: &Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
+    fn scatter(&self, ray: Ray, hit: &HitRecord, indent_by: usize) -> LightScatter {
         let indent = vec![' '; indent_by];
         let indent: String = indent.iter().cloned().collect();
         if DEBUG {

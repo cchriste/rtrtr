@@ -20,8 +20,8 @@
 
 const DEBUG: bool = false;
 const LITE: bool = false;
-const BOOK: bool = true; // try to match Shirley's RTiOW configs
-const FINAL: bool = true; // match RTiOW final image
+const BOOK: bool = false; // try to match Shirley's RTiOW configs
+const FINAL: bool = false; // match RTiOW final image
 
 // Lambertian reflection equation
 const REFL_TYPE: ReflectionType = ReflectionType::NormalPlusPointOnSphere; // add this to the [Vulkan] UI
@@ -38,15 +38,17 @@ const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if FINAL && BOOK { 5
 
 // camera
 fn setup_camera() -> Camera {
-    let aperture: f32 = 0.1; // a tiny aperture simulates a point camera
-    let fov: f32 = 20.0;
+    //let aperture: f32 = 0.1;
+    let aperture: f32 = 0.001; // a tiny aperture simulates a point camera
+    let fov: f32 = 30.0;
     let sample_type: camera::SampleType = SampleType::PixelRatio;
     //let sample_type: camera::SampleType = SampleType::Blurry;  // add this to the UI
+    let look_from: Vec3 = Vec3::new([0.0, 0.5, 3.0]);
     //let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
-    let look_from: Vec3 = Vec3::new([13.0, 2.0, 3.0]);
+    //let look_from: Vec3 = Vec3::new([13.0, 2.0, 3.0]);
     //let look_from: Vec3 = Vec3::new([3.0, 3.0, 2.0]);
-    let look_at: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
-    //let look_at: Vec3 = Vec3::new([0.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
+    //let look_at: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
+    let look_at: Vec3 = Vec3::new([0.0, 0.5, -1.0]); // TODO: split into look_dir and focal_dist
     let vup: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
     let dist_to_focus: f32 = if FINAL { 10.0 } else { (look_at - look_from).len() };
 
@@ -80,7 +82,7 @@ use crate::camera::*;
 use materials::LightScatter::{ Attenuated, Absorbed };
 
 // color of ray(origin, dir)
-fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
+fn ray_color(ray: Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
     let indent = vec![' '; indent_by];
     let indent: String = indent.iter().cloned().collect();
 
@@ -90,12 +92,16 @@ fn ray_color(ray: &Ray, scene: &Jumble, depth: i32, indent_by: usize) -> Color {
     let mut hit = HitRecord::new();
     match scene.intersect(ray, &Range::default(), &mut hit, indent_by) {
         Shot::Hit => {
+            // return 0.5*Color::new([hit.normal.x()+1.0,
+            //                        hit.normal.y()+1.0,
+            //                        hit.normal.z()+1.0]);
+
             if crate::DEBUG {
                 println!("{}{}: hit! {}", indent, crate::MAX_DEPTH-depth, hit);
             }
             match hit.material.scatter(ray, &hit, indent_by) {
                 Attenuated(color, ray) => {
-                    return color*ray_color(&ray, scene, depth-1, indent_by);
+                    return color*ray_color(ray, scene, depth-1, indent_by);
                 },
                 Absorbed => return Color::black(),
             }
@@ -117,13 +123,14 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {IMAGE_HEIGHT/3 + 4} else {0};
-    //let start_row = IMAGE_HEIGHT/2;
+    let start_row = if DEBUG {70} else {0};
+    //let start_row = if DEBUG {IMAGE_HEIGHT/3 + 4} else {0};
     let end_row = IMAGE_HEIGHT;
     //let end_row = IMAGE_HEIGHT/2+1;
     let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
 
-    let start_col = if DEBUG {2*IMAGE_WIDTH/5 - 6} else {0};
+    //let start_col = if DEBUG {2*IMAGE_WIDTH/5 - 6} else {0};
+    let start_col = if DEBUG {125} else {0};
     let end_col = IMAGE_WIDTH;
     let step_x: usize = if DEBUG { ((IMAGE_WIDTH+10)).try_into().unwrap() } else { 1 };
 
@@ -157,8 +164,7 @@ fn main() {
     let mut camera = setup_camera(); // FIXME? camera stores an rng that mutates when used
 
     // build scene
-    //let scene = scene::build_scene();
-    let scene = scene::build_rtiow_final_scene();
+    let scene = if FINAL { scene::build_rtiow_final_scene() } else { scene::build_scene() };
 
     let pixels = get_pixels_to_trace();
     for px in &pixels {
@@ -173,7 +179,7 @@ fn main() {
                 println!("[pixel] ({}, {}):", px[0], px[1]);
                 //println!("shooting {}",ray);
             }
-            color += ray_color(&ray, &scene, MAX_DEPTH, 0/*indent*/);
+            color += ray_color(ray, &scene, MAX_DEPTH, 0/*indent*/);
         }
         color /= nsamples as f32;
 

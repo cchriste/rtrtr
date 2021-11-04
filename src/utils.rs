@@ -20,14 +20,27 @@ pub fn print_type_of<T>(_: &T) {
     println!("{}", std::any::type_name::<T>())
 }
 
-// for debugging convenience
-pub fn rad_to_deg(angle: f32) -> f32 {
-    angle*180.0/std::f32::consts::PI
+//TODO: encourage myself to use the built in functions instead of these
+// for [debugging] convenience
+pub fn rad_to_deg(rad: f32) -> f32 {
+    //rad*180.0/std::f32::consts::PI
+    rad.to_degrees()
+}
+
+// for [creation] convenience
+pub fn deg_to_rad(deg: f32) -> f32 {
+    //deg*std::f32::consts::PI/180.0
+    deg.to_radians()
 }
 
 use std::ops::{Mul, Div, Sub, Add, Neg, AddAssign, SubAssign, MulAssign, DivAssign, Index, IndexMut};
 use std::fmt;
 use crate::DEBUG;
+use std::cmp::{PartialEq};
+
+// generate more evenly distributed random values
+use rand::{Rng, thread_rng};
+use rand::distributions::{Distribution, Uniform};
 
 pub enum Axis { X, Y, Z }
 
@@ -197,6 +210,7 @@ impl SubAssign for Color {
 
 #[derive(Debug)]
 #[derive(Copy, Clone)]
+#[derive(PartialEq)]
 pub struct Vec3 {
     pub v: [f32; 3],
 }
@@ -301,6 +315,16 @@ impl Div<f32> for Vec3 {
     }
 }
 
+// cool! we can do k/Vec3
+impl Div<Vec3> for f32 {
+    type Output = Vec3;
+    fn div(self, vec: Vec3) -> Vec3 {
+        Vec3 { v: [self / vec.v[0],
+                   self / vec.v[1],
+                   self / vec.v[2]] }
+    }
+}
+
 impl DivAssign<f32> for Vec3 {
     fn div_assign(&mut self, k: f32) -> () {
         *self = Self { v: [self.v[0] / k,
@@ -312,10 +336,6 @@ impl DivAssign<f32> for Vec3 {
 pub fn dot(v1: Vec3, v2: Vec3) -> f32 {
     v1.dot(v2)
 }
-
-// generate more evenly distributed random values
-use rand::{Rng, thread_rng};
-use rand::distributions::{Distribution, Uniform};
 
 impl Vec3 {
     pub const fn zero() -> Self {
@@ -354,7 +374,8 @@ impl Vec3 {
     pub const fn z(&self) -> f32 { self.v[2] }
 
     pub fn len_squared(&self) -> f32 {
-        self.v[0]*self.v[0] + self.v[1]*self.v[1] + self.v[2]*self.v[2]
+        //self.v[0]*self.v[0] + self.v[1]*self.v[1] + self.v[2]*self.v[2]
+        self.dot(*self) //TODO: Vec 2 and 4 as well, and figure out templates ftw
     }
 
     pub fn len(&self) -> f32 {
@@ -392,6 +413,11 @@ impl Vec3 {
                    self.v[2] / magnitude] }
     }
 
+    pub fn invert(&self) -> Vec3 {
+        1.0 / *self
+    }
+
+    // TODO: put reflect and refract in a more appropriate place (maybe Ray, but no need for origin...)
     // a perfect reflection across the normal
     pub fn reflect(&self, n: &Vec3) -> Vec3 {
         *self - 2.0*self.dot(*n) * (*n)
@@ -423,6 +449,7 @@ impl Vec3 {
 
 
 #[derive(Debug)]
+#[derive(Clone, Copy)]
 pub struct Ray {
     pub origin: Vec3,
     pub dir: Vec3
@@ -497,6 +524,92 @@ impl Range {
 
 #[derive(Debug)]
 #[derive(Copy, Clone)]
+pub struct CoordSys {
+    // "in with orthogonal, out with a dual" (en guard!)
+    pub m_in: Matrix, // convert points and vectors from canonical csys to this CoordSys
+    pub m_out: Matrix, // converts points and vectors back to canonical csys
+    pub m_out_normal: Matrix, // converts *normals* back to canonical space (6.2.2 in Fund_of_CG)
+}
+
+impl CoordSys {
+    pub const fn identity() -> Self {
+        Self {
+            m_in: Matrix::identity(),
+            m_out: Matrix::identity(),
+            m_out_normal: Matrix::identity(),
+        }
+    }
+
+    pub fn from_matrix(m: Matrix) -> Self {
+        let m_in = m;
+        let m_out = m.generic_inverse();
+        let m_out_normal = Matrix::biorthogonal_basis(m_out.u(),m_out.v(),m_out.w());
+
+        Self { m_in,
+               m_out,
+               m_out_normal,
+        }
+    }
+
+    pub fn new(origin: Vec3, s: Vec3, u: Vec3, v: Vec3, w: Vec3) -> Self {
+        // gets rays to the party (normals aren't invited)
+        let translate = Matrix::translation(-origin);
+        let rotate = Matrix::biorthogonal_basis(u,v,w);
+        let scale = Matrix::scale(1.0 / s);
+        let m_in = scale * rotate * translate;
+
+        // gets the normals outta here (TODO: be sure to normalize them after transforming)
+        let m_out_normal = m_in.transpose();
+
+        // gets points home safe (normals take a different bus)
+        let scale = Matrix::scale(s);
+        let rotate =  Matrix::basis(u, v, w).transpose();
+        let translate = Matrix::translation(origin);
+        let m_out = translate * rotate * scale;
+
+        // TODO: compare these and wonder why they're not the same :-O
+        let generic_inv = m_in.generic_inverse();
+        println!("m: {}", m_in);
+        println!("inverse: {}", m_out);
+        println!("generic_inverse: {}", generic_inv);
+        // TODO: ...then delete these three lines. Well, five with comments.
+
+        Self { m_in, m_out, m_out_normal }
+    }
+
+    // NOTE: do the next six functions really need to be here? instead self.m_in(vec) seems fine
+    pub fn vec_in(&self, vec: Vec3) -> Vec3 {
+        self.m_in.apply_to_vector(vec)
+    }
+
+    pub fn point_in(&self, pt: Vec3) -> Vec3 {
+        self.m_in.apply_to_point(pt)
+    }
+
+    pub fn ray_in(&self, ray: Ray) -> Ray {
+        // let o_in = self.point_in(ray.origin);
+        // let dir_in = self.vec_in(ray.dir) - self.point_in(Vec3::zero());
+        let o_in = self.m_in.apply_to_point(ray.origin);
+        let dir_in = self.m_in.apply_to_point(ray.dir) - self.m_in.apply_to_point(Vec3::zero());
+        Ray { origin: o_in, dir: dir_in }
+    }
+
+    // FIXME: ever used?
+    pub fn vec_out(&self, vec: Vec3) -> Vec3 {
+        self.m_out.apply_to_vector(vec)
+    }
+
+    pub fn point_out(&self, pt: Vec3) -> Vec3 {
+        self.m_out.apply_to_point(pt)
+    }
+
+    pub fn normal_out(&self, n: Vec3) -> Vec3 {
+         self.m_out_normal.apply_to_vector(n)
+    }
+}
+
+#[derive(Debug)]
+#[derive(Copy, Clone)]
 pub struct Matrix {
     pub rows: [Vec4; 4],
 }
@@ -524,9 +637,9 @@ impl Matrix {
     }
 
     pub fn transpose(&self) -> Matrix {
-        Matrix { rows: [ Vec4::new([self.rows[0][0], self.rows[1][0], self.rows[2][0], self.rows[3][0]]), 
-                         Vec4::new([self.rows[0][1], self.rows[1][1], self.rows[2][1], self.rows[3][1]]), 
-                         Vec4::new([self.rows[0][2], self.rows[1][2], self.rows[2][2], self.rows[3][2]]), 
+        Matrix { rows: [ Vec4::new([self.rows[0][0], self.rows[1][0], self.rows[2][0], self.rows[3][0]]),
+                         Vec4::new([self.rows[0][1], self.rows[1][1], self.rows[2][1], self.rows[3][1]]),
+                         Vec4::new([self.rows[0][2], self.rows[1][2], self.rows[2][2], self.rows[3][2]]),
                          Vec4::new([self.rows[0][3], self.rows[1][3], self.rows[2][3], self.rows[3][3]]) ]
         }
     }
@@ -537,6 +650,8 @@ impl Matrix {
         Vec3::new([vec[0], vec[1], vec[2]])
     }
 
+    // FIXME: does this matter or can everything use apply_to_point?
+    // YES! it matters for... can't remember the term, implicit? transformations (i.e., vectors)
     pub fn apply_to_vector(&self, vec: Vec3) -> Vec3 {
         let vec = Vec4::new([vec[0], vec[1], vec[2], 0.0]);
         let vec = *self * vec;
@@ -548,7 +663,7 @@ impl Matrix {
     // adjugate matrix method:
     // A = Ã/|A|
     //
-    pub fn inverse(&self) -> Matrix {
+    pub fn generic_inverse(&self) -> Matrix {
         // (thank you, https://semath.info/src/inverse-cofactor-ex4.html)
 
         // 入力したデータAB
@@ -607,6 +722,18 @@ impl Matrix {
         return self.rows[i];
     }
 
+    pub fn u(&self) -> Vec3 {
+        Vec3::new([self.rows[0][0], self.rows[0][1], self.rows[0][2]])
+    }
+
+    pub fn v(&self) -> Vec3 {
+        Vec3::new([self.rows[1][0], self.rows[1][1], self.rows[1][2]])
+    }
+
+    pub fn w(&self) -> Vec3 {
+        Vec3::new([self.rows[2][0], self.rows[2][1], self.rows[2][2]])
+    }
+
     pub fn scale(v: Vec3) -> Self {
         let mut mat = Self::identity();
         mat.rows[0][0] *= v[0];
@@ -615,38 +742,76 @@ impl Matrix {
         mat
     }
 
-    // TODO: skew
+    // TODO: is there a better way to create skew?
     // pub fn skew(axis: Axis (plane? matrix?), angle: f32 ...) -> Self {
     //     ...
     // }
-
-    pub fn translate(&mut self, t: Vec3) -> &mut Self {
-        self.rows[0][3] += t.x();
-        self.rows[1][3] += t.y();
-        self.rows[2][3] += t.z();
-        self
+    pub fn basis(fu: Vec3, fv: Vec3, fw: Vec3) -> Self {
+        let mut mat = Self::identity();
+        if fu.normalize() != fu || fv.normalize() != fv || fw.normalize() != fw {
+            println!("WARNING: creating a basis from unnormalized vectors.");
+        }
+        let u = fu.normalize(); let v = fv.normalize(); let w = fw.normalize();
+        //let u = fu; let v = fv; let w = fw;
+        mat.rows[0] = Vec4::new([u.x(), u.y(), u.z(), 0.0]);
+        mat.rows[1] = Vec4::new([v.x(), v.y(), v.z(), 0.0]);
+        mat.rows[2] = Vec4::new([w.x(), w.y(), w.z(), 0.0]);
+        mat
     }
 
+
+    // Computes the dual (bi-orthogonal basis) of the given u,w,v basis.
+    // This is used to properly return normals from coordinate systems with skew.
+    // The dual of u, v, and w we'll call ~u, ~v, ~w
+    pub fn biorthogonal_basis(fu: Vec3, fv: Vec3, fw: Vec3) -> Self {
+        let mut mat = Self::identity();
+        if fu.normalize() != fu || fv.normalize() != fv || fw.normalize() != fw {
+            println!("WARNING: creating a dual basis from unnormalized vectors.");
+        }
+        let u = fu.normalize(); let v = fv.normalize(); let w = fw.normalize();
+        //let u = fu; let v = fv; let w = fw;
+        let tmp = v.cross(w);
+        let bu = tmp / tmp.dot(u);
+        let tmp = w.cross(u);
+        let bv = tmp / tmp.dot(v);
+        let tmp = u.cross(v);
+        let bw = tmp / tmp.dot(w);
+        mat.rows[0] = Vec4::new([bu.x(), bu.y(), bu.z(), 0.0]);
+        mat.rows[1] = Vec4::new([bv.x(), bv.y(), bv.z(), 0.0]);
+        mat.rows[2] = Vec4::new([bw.x(), bw.y(), bw.z(), 0.0]);
+        mat
+    }
+
+    pub fn translation(t: Vec3) -> Self {
+        let mut mat = Self::identity();
+        mat.rows[0][3] = t.x();
+        mat.rows[1][3] = t.y();
+        mat.rows[2][3] = t.z();
+        mat
+    }
+
+    // TODO: there's a (imo better) version of this that can rotate around an
+    // arbitrary vector (or rotate one vector into another) rodrigues?
     pub fn rotation(rad: f32, axis: Axis) -> Self {
         let mut mat = Self::identity();
         match axis {
             Axis::X => {
-                mat.rows[1][1] += rad.cos();
-                mat.rows[1][2] += rad.sin();
-                mat.rows[2][1] += -rad.sin();
-                mat.rows[2][2] += rad.cos();
+                mat.rows[1][1] = rad.cos();
+                mat.rows[1][2] = rad.sin();
+                mat.rows[2][1] = -rad.sin();
+                mat.rows[2][2] = rad.cos();
             },
             Axis::Y => {
-                mat.rows[0][0] += rad.cos();
-                mat.rows[0][2] += -rad.sin();
-                mat.rows[2][0] += rad.sin();
-                mat.rows[2][2] += rad.cos();
+                mat.rows[0][0] = rad.cos();
+                mat.rows[0][2] = -rad.sin();
+                mat.rows[2][0] = rad.sin();
+                mat.rows[2][2] = rad.cos();
             },
             Axis::Z => {
-                mat.rows[0][0] += rad.cos();
-                mat.rows[0][1] += rad.sin();
-                mat.rows[1][0] += -rad.sin();
-                mat.rows[1][1] += rad.cos();
+                mat.rows[0][0] = rad.cos();
+                mat.rows[0][1] = rad.sin();
+                mat.rows[1][0] = -rad.sin();
+                mat.rows[1][1] = rad.cos();
             }
         }
         mat
