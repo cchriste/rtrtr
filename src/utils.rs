@@ -604,7 +604,7 @@ impl CoordSys {
     }
 
     pub fn normal_out(&self, n: Vec3) -> Vec3 {
-         self.m_out_normal.apply_to_vector(n)
+         self.m_out_normal.apply_to_vector(n).normalize()
     }
 }
 
