@@ -8,6 +8,7 @@ The parameters... are actually all currently at the top of main.rs. :)
 ## Images
 
 <p><img src="./journal/done_covered_it.png" /></p>
+<p><img src="./journal/09-coordsys2/21c-a scene with squishy metal spheres.png" /></p>
 <p><img src="./journal/05-coordsys/23-not enough skew.png" /></p>
 <p><img src="./journal/10-camera2/35-depth of field without sphere shadows.png" /></p>
 <p><img src="./journal/10-camera2/34a-far far away.png" /></p>
