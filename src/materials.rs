@@ -83,9 +83,15 @@ impl Material for Shiny {
         let indent: String = indent.iter().cloned().collect();
         if DEBUG {
             println!("{} ⊕ Shiny.scatter: c:{} fuzz:{}", indent_by, self.albedo, self.fuzz);
+            println!("{}ray: {:?}", indent, ray);
+            println!("{}hit: {:?}", indent, hit);
         }
 
         let dir = ray.dir.reflect(&hit.normal) + self.fuzz*random_point_in_unit_sphere();
+        if DEBUG {
+            println!("{}dir: {:?}", indent, dir);
+            println!("{}dir.dot(hit.normal): {}", indent, dir.dot(hit.normal));
+        }
         if dir.dot(hit.normal) > 0.0 {
             if DEBUG {
                 println!("{} reflected ray dir: {}", indent, dir);
@@ -142,8 +148,8 @@ impl Material for Transparent {
         let refraction_ratio = src_eta / dst_eta;
         let cos_theta = (-1.0*hit.normal.dot(ray.dir)).min(1.0); // *-1.0 so both in same direction
         let sin_theta = (1.0 - cos_theta*cos_theta).sqrt();
-        let reflect = refraction_ratio * sin_theta > 1.0 ||
-            self.reflectance(cos_theta, src_eta, dst_eta) > rand::thread_rng().gen();
+        let reflect = refraction_ratio * sin_theta > 1.0
+            || self.reflectance(cos_theta, src_eta, dst_eta) > rand::thread_rng().gen();
 
         if reflect {
             let dir = ray.dir.reflect(&hit.normal) + self.fuzz*random_point_in_unit_sphere();

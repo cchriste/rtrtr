@@ -2,6 +2,8 @@
 // September 2021
 // ?'s: see #learning Rust note in Standard Notes)
 
+//FIXME: what is this? color_range: [(R:0.5849 G:0.7110 B:0.9000 A:1.0000), (R:0.5849 G:0.7110 B:0.9000 A:2.0000)]
+
 // NIKE™ tasks:
 // [] use lib.rs
 // [] Rust Programming Language ch 10
@@ -40,15 +42,18 @@ const MAX_DEPTH: i32 = if DEBUG {4} else if LITE {100} else if FINAL && BOOK { 5
 fn setup_camera() -> Camera {
     //let aperture: f32 = 0.1;
     let aperture: f32 = 0.001; // a tiny aperture simulates a point camera
-    let fov: f32 = 30.0;
+    let fov: f32 = 90.0;
     let sample_type: camera::SampleType = SampleType::PixelRatio;
     //let sample_type: camera::SampleType = SampleType::Blurry;  // add this to the UI
-    let look_from: Vec3 = Vec3::new([0.0, 0.5, 3.0]);
+    //let look_from: Vec3 = Vec3::new([1.0, 2.0, -1.0]);
+    let look_from: Vec3 = Vec3::new([0.0, 0.0, 1.0]);
     //let look_from: Vec3 = Vec3::new([-2.0, 2.0, 1.0]);
     //let look_from: Vec3 = Vec3::new([13.0, 2.0, 3.0]);
     //let look_from: Vec3 = Vec3::new([3.0, 3.0, 2.0]);
     //let look_at: Vec3 = Vec3::new([0.0, 0.0, 0.0]);
-    let look_at: Vec3 = Vec3::new([0.0, 0.5, -1.0]); // TODO: split into look_dir and focal_dist
+    let look_at: Vec3 = Vec3::new([0.0, 0.5, -1.0]);
+    //let look_at: Vec3 = Vec3::new([1.0, 0.0, -1.0]); // TODO: split into look_dir and focal_dist
+    //let vup: Vec3 = Vec3::new([1.0, 0.0, 0.0]);
     let vup: Vec3 = Vec3::new([0.0, 1.0, 0.0]);
     let dist_to_focus: f32 = if FINAL { 10.0 } else { (look_at - look_from).len() };
 
@@ -123,14 +128,14 @@ fn get_pixels_to_trace() -> Vec<[u32; 2]> {
     let mut pixels: Vec<[u32; 2]> = Vec::new();
 
     // handy for debugging just a couple of intersections
-    let start_row = if DEBUG {70} else {0};
-    //let start_row = if DEBUG {IMAGE_HEIGHT/3 + 4} else {0};
+    //let start_row = if DEBUG {70} else {0};
+    let start_row = if DEBUG {IMAGE_HEIGHT/2 +1} else {0};
     let end_row = IMAGE_HEIGHT;
     //let end_row = IMAGE_HEIGHT/2+1;
     let step_y: usize = if DEBUG { (IMAGE_HEIGHT).try_into().unwrap() } else { 1 };
 
-    //let start_col = if DEBUG {2*IMAGE_WIDTH/5 - 6} else {0};
-    let start_col = if DEBUG {125} else {0};
+    let start_col = if DEBUG {IMAGE_WIDTH/2 +1} else {0};
+    //let start_col = if DEBUG {125} else {0};
     let end_col = IMAGE_WIDTH;
     let step_x: usize = if DEBUG { ((IMAGE_WIDTH+10)).try_into().unwrap() } else { 1 };
 

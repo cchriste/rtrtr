@@ -62,7 +62,7 @@ pub fn build_scene() -> Jumble {
                                                        Rc::clone(&matright)));
 
     let mut shiny_scene = Jumble::new();
-    shiny_scene.name = "main".to_string();
+    shiny_scene.name = "shiny".to_string();
     //shiny_scene.add(Rc::clone(&ctr)); // center
     shiny_scene.add(Rc::clone(&gnd)); // ground
     //shiny_scene.add(Rc::clone(&lout)); // left outer
@@ -83,11 +83,11 @@ pub fn build_scene() -> Jumble {
     //mat = mat.transpose();  // "passive" since we're rotating axes, not points and vectors
     //println!("uvw mat: {}", mat);
 
-    let r0 = Matrix::rotation_deg(45.0, Axis::Z);
-    let r1 = Matrix::rotation_deg(-45.0, Axis::Y);
-    let r2 = Matrix::rotation_deg(-90.0, Axis::X);
+    let r0 = Matrix::rotation_deg(90.0, Axis::Z);
+    let r1 = Matrix::rotation_deg(45.0, Axis::Y);
+    let r2 = Matrix::rotation_deg(90.0, Axis::X);
     //let rotate = r0 * r1 * r2;
-    let rotate = r1;
+    let rotate = r0;
     //let rotate = Matrix::identity();
     //let scale = Matrix::scale(Vec3::new([1.0, 0.25, 0.5]));
     //let translate = Matrix::translation(Vec3::new([0.0, 0.5, -1.0]));
