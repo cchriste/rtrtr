@@ -21,10 +21,11 @@ pub fn build_scene() -> Jumble {
     //let matctr: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.7, 0.3, 0.3]), 0.0, 1.5));
     let matctrbook: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.1, 0.2, 0.5])));
     //let matctrbook: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([1.0,1.0,1.0])));
-    //let matctrbook: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
+    let matctrbook: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
 
     //let matleft: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([0.8, 0.8, 0.8]), 0.0, 1.5));
     let matleft: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.9, 0.9, 0.9]), 0.0));
+    //let matleft: Rc<dyn Material> = Rc::new(Lambertian::new(Color::new([0.9, 0.3, 0.15])));
     let matleftbook: Rc<dyn Material> = Rc::new(Transparent::new(Color::new([1.0, 1.0, 1.0]), 0.0, 1.5));
 
     let matright: Rc<dyn Material> = Rc::new(Shiny::new(Color::new([0.8, 0.6, 0.2]), 0.0));
@@ -50,6 +51,10 @@ pub fn build_scene() -> Jumble {
                                                          Rc::clone(&matctrbook)));
     let sctr: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,0.0]), 0.5,
                                                          Rc::clone(&matleft)));
+    let sctrout: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,0.0]), 0.5,
+                                                          Rc::clone(&matctrbook)));
+    let sctrin: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([0.0,0.0,0.0]), 0.45,
+                                                          Rc::clone(&matctrbook)));
     let lout: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-1.0,0.0,-1.0]), 0.5,
                                                         Rc::clone(&matleftbook)));
     let lin: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-1.0,0.0,-1.0]), -0.45,
@@ -58,7 +63,13 @@ pub fn build_scene() -> Jumble {
                                                        Rc::clone(&matleft)));
     let lbig: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-100.5,0.5,-1.0]), 100.0,
                                                        Rc::clone(&matleft)));
+    let lbigout: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-100.5,0.5,-1.0]), 100.0,
+                                                          Rc::clone(&matctrbook)));
+    let lbigin: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([-100.5,0.5,-1.0]), 90.0,
+                                                          Rc::clone(&matctrbook)));
     let r: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([1.0,0.0,-1.0]), 0.5,
+                                                       Rc::clone(&matright)));
+    let sr: Rc<dyn Intersectable> = Rc::new(Sphere::new(Vec3::new([1.0,0.0,-0.5]), 0.5,
                                                        Rc::clone(&matright)));
 
     let mut shiny_scene = Jumble::new();
@@ -68,6 +79,8 @@ pub fn build_scene() -> Jumble {
     //shiny_scene.add(Rc::clone(&lout)); // left outer
     //shiny_scene.add(Rc::clone(&lin)); // left inner
     shiny_scene.add(Rc::clone(&lbig)); // left mirror
+    // shiny_scene.add(Rc::clone(&lbigout)); left mirror
+    // shiny_scene.add(Rc::clone(&lbigin)); left mirror
     //shiny_scene.add(Rc::clone(&l)); // left shiny
     //shiny_scene.add(Rc::clone(&r)); // right
     scene.add(Rc::new(shiny_scene) as Rc<dyn Intersectable>);
@@ -83,7 +96,7 @@ pub fn build_scene() -> Jumble {
     //mat = mat.transpose();  // "passive" since we're rotating axes, not points and vectors
     //println!("uvw mat: {}", mat);
 
-    let r0 = Matrix::rotation_deg(90.0, Axis::Z);
+    let r0 = Matrix::rotation_deg(45.0, Axis::Z);
     let r1 = Matrix::rotation_deg(45.0, Axis::Y);
     let r2 = Matrix::rotation_deg(90.0, Axis::X);
     //let rotate = r0 * r1 * r2;
@@ -109,15 +122,17 @@ pub fn build_scene() -> Jumble {
         //Vec3::new([0.0, 0.0, 0.0]),  // origin
         //Vec3::new([0.45, 1.5, 0.75]),  // scale
         //Vec3::new([0.5, 0.5, 0.5]),  // half scale
-        Vec3::new([2.0, 0.15, 0.5]),  // saucer scale
-        //Vec3::new([1.0, 1.0, 1.0]),  // scale
-        // Vec3::new([0.0, -1.0, 0.0]),  // u
-        // Vec3::new([1.0, 0.0, 0.0]),  // v
-        // Vec3::new([0.0, 0.0, 1.0])); // w
-        mat.u(), mat.v(), mat.w());
+        //Vec3::new([2.0, 0.15, 0.5]),  // saucer scale
+        Vec3::new([1.0, 1.0, 1.0]),  // scale
+        Vec3::new([1.0, 0.5, 0.0]),  // u
+        Vec3::new([0.0, 1.0, 0.0]),  // v
+        Vec3::new([0.0, 0.0, 1.0])); // w
+        //mat.u(), mat.v(), mat.w());
     squishy_scene.set_csys(csys);
     squishy_scene.add(Rc::clone(&sctr));
-    //squishy_scene.add(Rc::clone(&r));
+    // squishy_scene.add(Rc::clone(&sctrout)); // problems abound with transparents
+    // squishy_scene.add(Rc::clone(&sctrin));
+    squishy_scene.add(Rc::clone(&sr));
     scene.add(Rc::new(squishy_scene) as Rc<dyn Intersectable>);
 
 
